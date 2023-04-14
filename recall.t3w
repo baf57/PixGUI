@@ -1,0 +1,2 @@
+file,calib_file,spaceWindow,timeWindow,coincWindow,clusterRange,numScans,beamI,beamS
+C:/Users/JCEP Chi/Documents/TimrPixSoftware/tpx3_toolkit/tpx3_toolkit/examples/demo_file.tpx3,.\tpx3_workshop\config\TOT correction curve new firmware GST.txt,20,250,1000,30,20,"[14, 35, 115, 125]","[25, 117, 125, 213]"

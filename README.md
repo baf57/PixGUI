@@ -10,3 +10,4 @@ Other dependenices are:
 * [matplotlib](https://matplotlib.org/)
 * [numpy](https://numpy.org/)
 * [Pillow](https://pillow.readthedocs.io/en/latest/index.html)
+* [typing-extensions](https://pypi.org/project/typing-extensions/)
