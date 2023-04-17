@@ -432,7 +432,7 @@ class HistogramCanvas(CanvasFrame):
         self.redraw()
 
     def clicked(self,event):
-        # BUG: broken in an unkown way
+        # BUG: broken in an unknown way which makes the maximum of the hist huge
         if self.clickvline is not None: 
             self.clickvline.remove()
             self.clickvline = None

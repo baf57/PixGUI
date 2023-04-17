@@ -29,9 +29,7 @@ class LoadTab(ctk.CTkFrame):
 
         # global load data
         self.inp_file = tk.StringVar(self)
-        self.calibration_file = tk.StringVar(self, os.path.join(os.path.curdir,\
-            'tpx3_workshop','config',\
-                'TOT correction curve new firmware GST.txt'))
+        self.calibration_file = tk.StringVar()
 
         # default settings
         self.beamI = []
@@ -314,8 +312,10 @@ class BeamSelect(LabeledFrame):
                     self.beamSString.set(f'{{{oldstring}, {newstring}}}')
 
     def redraw_beams(self):
-        t3view.draw_beam_box(self.canvas.ax,self.beamI,['g'])
-        t3view.draw_beam_box(self.canvas.ax,self.beamS,['r'])
+        beamIDrawing = t3view.draw_beam_box(self.canvas.ax,self.beamI,['g'])
+        beamSDrawing = t3view.draw_beam_box(self.canvas.ax,self.beamS,['r'])
+        self.boxes.append(beamIDrawing)
+        self.boxes.append(beamSDrawing)
         self.canvas.redraw()
 
     def reset_beams(self):
@@ -330,6 +330,7 @@ class BeamSelect(LabeledFrame):
                     drawing.remove() 
                     # BUG: something wrong is happening here sometimes, but it's
                     # not a visual error to the user so oh well
+            self.canvas.redraw()
         except Exception as e:
             self.master.errors.append('Exception thrown during beam reset.' + # type: ignore
                                       ' This exception is known to not cause' +
@@ -382,6 +383,9 @@ class ProcessFrame(LabeledFrame):
             sticky='ew')
     
     def process(self):
+        if len(self.calib_file.get()) == 0:
+            self.errors.append('Please select a load file!')
+            return
         try:
             self.load_state.set('Processing...')
             self.load_bar.configure(mode='indeterminate')

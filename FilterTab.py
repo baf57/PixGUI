@@ -67,6 +67,7 @@ class TimeTab(ctk.CTkFrame):
                         filtered_data_updates:CanvasList, **kwargs):
         # TODO: add time filtering
         super().__init__(*args, **kwargs)
+        self.counter = 0 # FOR DEBUGGING ONLY
 
         # init data
         self.raw_data = raw_data
@@ -91,6 +92,7 @@ class TimeTab(ctk.CTkFrame):
                                    filtered_data_updates= \
                                    self.filtered_data_updates, \
                                     hist_update=self.update_histogram, \
+                                    get_apply_filter=self.get_apply_filter, \
                                      label_text="Time Statistics")
         
         # modify widgets
@@ -110,6 +112,7 @@ class TimeTab(ctk.CTkFrame):
         self.preview.ax_2.set_ylabel("$Y$ (pixels)")
 
         t3view.plot_coincidences(data.get(), fig=self.preview.figure)
+        self.preview.redraw()
     
     def update_histogram(self, data):
         t3view.plot_histogram(data.get(), min_bin=self.min_bin.get(),\
@@ -117,11 +120,21 @@ class TimeTab(ctk.CTkFrame):
                                   fig = self.histogram.figure)
         self.histogram.redraw()
 
+    def get_apply_filter(self):
+        dt = self.raw_data.get()[1,2,:] - self.raw_data.get()[0,2,:]
+        (tmin, tmax) = self.histogram.get_clicks()
+        print(f'{tmin=}, {tmax=}')
+        f = np.logical_and(dt >= tmin, dt <= tmax)
+        print(f'{f.shape=}')
+        self.filtered_data.set(self.raw_data.get()[:,:,f])
+        self.filtered_data_updates.update_all()
+
 class TimeInfo(LabeledFrame):
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, min_bin:tk.IntVar,\
                      max_bin:tk.IntVar, filtered_data_updates:CanvasList,\
-                         hist_update:Callable, **kwargs):
+                         hist_update:Callable, get_apply_filter:Callable, \
+                              **kwargs):
         super().__init__(*args, **kwargs)
 
         # init data
@@ -134,6 +147,7 @@ class TimeInfo(LabeledFrame):
         self.min_bin = min_bin
         self.max_bin = max_bin
         self.hist_update = hist_update
+        self.get_apply_filter = get_apply_filter
         
         filtered_data_updates.append([self.update_info])
 
@@ -149,19 +163,22 @@ class TimeInfo(LabeledFrame):
                                            command=self.update_info_from_button)
         self.show_f_counts = LabeledEntry(f, var_ref=self.filtered_counts, \
                                         label_text=\
-                                        "Number of counts with filter: ",\
+                                        "# counts with filter: ",\
                                             label_side='before')
         self.show_t_counts = LabeledEntry(f, var_ref=self.tot_counts, \
                                         label_text=\
                                         "Total counts: ",\
                                             label_side='before')
+        self.filter_button = ctk.CTkButton(f, text='Selected to Filter',width=0,\
+                                          command=self.get_apply_filter)
     
         # layout widgets
-        self.show_f_counts.grid(row=0,column=0,columnspan=3,padx=5,pady=(5,0),sticky='ew')
-        self.show_t_counts.grid(row=0,column=3,columnspan=3,padx=5,pady=(5,0),sticky='ew')
-        self.minBinController.grid(row=1,column=0,columnspan=2,padx=(5,0),pady=3,sticky='ew')
-        self.maxBinController.grid(row=1,column=2,columnspan=2,padx=3,pady=0,sticky='ew')
-        self.update_button.grid(row=1,column=4,columnspan=2,padx=(0,5),pady=(3,5),sticky='ew')
+        self.show_f_counts.grid(row=0,column=0,padx=(5,0),pady=(5,0),sticky='ew')
+        self.show_t_counts.grid(row=0,column=1,padx=3,pady=(5,0),sticky='ew')
+        self.filter_button.grid(row=0,column=2,padx=(0,5),pady=(5,0),sticky='ew')
+        self.minBinController.grid(row=1,column=0,padx=(5,0),pady=(3,5),sticky='ew')
+        self.maxBinController.grid(row=1,column=1,padx=3,pady=(3,5),sticky='ew')
+        self.update_button.grid(row=1,column=2,padx=(0,5),pady=(3,5),sticky='ew')
 
     def update_info_from_button(self):
         self.dt_raw = self.raw_data.get()[1,2,:] - self.raw_data.get()[0,2,:]
@@ -232,6 +249,7 @@ class SpaceTab(ctk.CTkFrame):
         self.preview.ax_2.set_ylabel("$Y$ (pixels)")
 
         t3view.plot_coincidences(data.get(), fig=self.preview.figure)
+        self.preview.redraw()
 
     def update_correlations(self, data):
         self.correlations.ax_1.set_xlabel("$X_i$ (pixels)")
@@ -240,6 +258,7 @@ class SpaceTab(ctk.CTkFrame):
         self.correlations.ax_2.set_ylabel("$Y_s$ (pixels)")
 
         t3view.plot_correlations(data.get(), fig=self.correlations.figure)
+        self.correlations.redraw()
 
 class SlopeControl(LabeledFrame):
     def __init__(self, *args, slope:tk.DoubleVar, direction:str, \

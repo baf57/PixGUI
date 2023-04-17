@@ -51,6 +51,8 @@ class CanvasList:
             self.args.extend(args)
 
     def update_all(self):
+        #print('Updating these canvas functions:')
+        #print([f'    {i.__name__}\n' for i in self.update_functions])
         for (update_function,kwargs) in \
             zip(self.update_functions,self.args):
             update_function(data=self.data, **kwargs)
@@ -97,7 +99,7 @@ class RecallFile:
             for line in r: # sets twice, but needs to skip header
                 self.parameters = line
         
-        print(self.parameters) # for testing
+        #print(self.parameters) # for testing
 
     def write_file(self, new_parameters:dict, file_name:str=''):
         # BUG: same beamI and beamS bug as above

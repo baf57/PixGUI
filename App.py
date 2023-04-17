@@ -31,7 +31,7 @@ class App(ctk.CTk):
             self.recall = RecallFile()
         except Exception as e:
             self.errors.append(
-                f'Error trying to read or create recal file:', True)
+                f'Error trying to read or create recall file:', True)
 
         # call matplotlib inits
         self.set_mpl_params()
@@ -66,6 +66,8 @@ class App(ctk.CTk):
         # layout tabs
         self.tabs.pack(padx=10, pady=10, anchor='center', expand=True, \
             fill='both')
+        
+        self.recallSettings()
 
     def set_mpl_params(self):
         if ctk.get_appearance_mode() == "Light":
@@ -93,8 +95,10 @@ class App(ctk.CTk):
     def save_state(self,file_name:str=''):
         new_params = self.recall.parameters.copy()
         try:
-            new_params['file'] = self.loadtab.inp_file.get()
-            new_params['calib_file'] = self.loadtab.calibration_file.get()
+            if len(self.loadtab.inp_file.get()) > 0:
+                new_params['file'] = self.loadtab.inp_file.get()
+            if len(self.loadtab.calibration_file.get()) > 0:
+                new_params['calib_file'] = self.loadtab.calibration_file.get()
             new_params['spaceWindow'] = self.loadtab.process.settings.spaceWindow.get()
             new_params['timeWindow'] = self.loadtab.process.settings.timeWindow.get()
             new_params['coincWindow'] = self.loadtab.process.settings.coincWindow.get()
@@ -130,10 +134,23 @@ class App(ctk.CTk):
         except:
             pass
 
+    def recallSettings(self):
+        self.loadtab.calibration_file.set(self.recall.parameters['calib_file'])
+        self.loadtab.process.settings.spaceWindow.set(self.recall.parameters['spaceWindow']) #type:ignore
+        self.loadtab.process.settings.timeWindow.set(self.recall.parameters['timeWindow']) #type:ignore
+        self.loadtab.process.settings.coincWindow.set(self.recall.parameters['coincWindow']) #type:ignore
+        self.loadtab.process.settings.clusterRange.set(self.recall.parameters['clusterRange']) #type:ignore
+        self.loadtab.process.settings.numScans.set(self.recall.parameters['numScans']) #type:ignore
+        # BUG: So it looks like I am somehow not setting the object reference,
+        # but instead the object itself. For the Settings this is not an issue,
+        # yet for the files it is... I am unsure of the cause. Mostly though it
+        # only affects the entry boxes and prevents them from showing the 
+        # internal data, yet the data is still there. Maybe I just need to 
+        # somehow get the widget to refresh?
+
     def quit_cleanup(self):
         self.save_state()
         self.quit()
-
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("Dark")
