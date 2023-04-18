@@ -17,8 +17,8 @@ class App(ctk.CTk):
     def __init__(self):
         # set some parameters and do super init
         super().__init__()
-        self.title("TPX3 Workshop")
-        self.minsize(1500,950)
+        self.title("PixGUI")
+        self.minsize(1500,900)
 
         # define the global data for the whole app
         self.raw_data = ReferentialNpArray()
@@ -63,7 +63,7 @@ class App(ctk.CTk):
             fill='both')
 
         # layout tabs
-        self.tabs.pack(padx=10, pady=10, anchor='center', expand=True, \
+        self.tabs.pack(padx=10, pady=0, anchor='center', expand=True, \
             fill='both')
         
         self.recallSettings()
@@ -87,7 +87,7 @@ class App(ctk.CTk):
         for name in self.tabs._name_list:
             self.tabs._tab_dict[name].grid(row=3, column=0, sticky="w",
                 padx=self.tabs._apply_widget_scaling(max(\
-                self.tabs._corner_radius, self.tabs._border_width)),
+                self.tabs._corner_radius, self.tabs._border_width)), \
                 pady=self.tabs._apply_widget_scaling(max(\
                 self.tabs._corner_radius, self.tabs._border_width)))
             

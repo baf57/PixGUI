@@ -46,7 +46,7 @@ class FilterTab(ctk.CTkFrame):
                           fill='both')
         self.spacetab.pack(padx=0,pady=0,anchor='center',expand=True, \
                           fill='both')
-        self.tabs.pack(padx=5, pady=5, anchor='center', expand=True, \
+        self.tabs.pack(padx=5, pady=0, anchor='center', expand=True, \
                        fill='both')
 
     def left_align_tabs(self):
@@ -80,12 +80,12 @@ class TimeTab(ctk.CTkFrame):
         self.fmax = tk.IntVar(self,200)
 
         # define widgets            #self.grid_rowconfigure(2,weight=1)
-        self.preview = SubplotCanvas(master=self, mode='save only', cwidth=400,\
-                                   cheight=800,
+        self.preview = SubplotCanvas(master=self, mode='save only', cwidth=375,\
+                                   cheight=750,
                                    label_text='Filtered Data Preview',
                                    axis_1_label='Signal', axis_2_label='Idler')
         self.histogram = HistogramCanvas(master=self, mode='cursor', \
-                                         cwidth=600, cheight=800, \
+                                         cwidth=563, cheight=750, \
                                             figsize=(4,6), \
                                                 label_text='Histogram', \
                                                 min_bin=self.min_bin, \
@@ -235,12 +235,12 @@ class SpaceTab(ctk.CTkFrame):
         self.y_slope = tk.DoubleVar(self, 45)
 
         # define widgets
-        self.preview = SubplotCanvas(master=self, mode='save only', cwidth=400,\
-                                   cheight=800,
+        self.preview = SubplotCanvas(master=self, mode='save only', cwidth=375,\
+                                   cheight=750,
                                    label_text='Filtered Data Preview', \
                                    axis_1_label='Signal', axis_2_label='Idler')
-        self.correlations = AngleCanvas(master=self,mode='cursor',cwidth=400,\
-                                          cheight=800, angle_1=self.x_slope, \
+        self.correlations = AngleCanvas(master=self,mode='cursor',cwidth=375,\
+                                          cheight=750, angle_1=self.x_slope, \
                                             angle_2=self.y_slope, \
                                               label_text='X-Y Correlations',
                                                 axis_1_label='X Correlations', \
