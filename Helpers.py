@@ -100,6 +100,8 @@ class RecallFile:
                 fields = prelim.__next__()
                 assert fields[0] == 'version'
                 values = prelim.__next__()
+                if len(values) == 0:
+                    values = prelim.__next__()
                 assert values[0] == str(self.parameters['version'])
                 
             with open(self.file_path, 'r') as f:
