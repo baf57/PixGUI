@@ -421,8 +421,15 @@ class AngleCanvas(SubplotCanvas):
         return (slope1,x1,y1,slope2,x2,y2) # type: ignore
 
 class HistogramCanvas(CanvasFrame):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, min_bin:tk.IntVar, max_bin:tk.IntVar, \
+                 title:str='', **kwargs):
+        self.min_bin = min_bin
+        self.max_bin = max_bin
         super().__init__(*args, **kwargs)
+        self.ax.set_title(title)
+        self.fbarmin = None
+        self.fbarmax = None
+        self.redraw()
 
     def update_cursor(self):
         if self.lastvline is not None: self.lastvline.remove()
@@ -432,25 +439,17 @@ class HistogramCanvas(CanvasFrame):
         self.redraw()
 
     def clicked(self,event):
-        # BUG: broken in an unknown way which makes the maximum of the hist huge
-        if self.clickvline is not None: 
-            self.clickvline.remove()
-            self.clickvline = None
-        else:
-            self.clickvline = self.ax.axvline(self.x,color="gray",ls=":")
+        if self.clickhline is not None: self.clickhline.remove() 
 
-        if self.clickhline is not None:
-            self.clickhline.remove()
-            self.clickhline = None
-        else:
-            self.clickhline = self.ax.axvline(self.y,color="gray",ls=":")
+        self.clickhline = self.clickvline # hline -> 2 clicks ago
+        self.clickvline = self.ax.axvline(self.x,color="gray",ls=":") # vline -> last click
 
         self.prevclickx = self.clickx
         self.clickx = self.x # closest integer value
         self.prevclicky = self.clicky
         self.clicky = self.y # closest integer value
 
-        self.redraw()
+        self.redraw() # I fixed the bug here
 
     def get_clicks(self) -> tuple[int,int]:
         # Return clicks as x1,x2
@@ -458,10 +457,26 @@ class HistogramCanvas(CanvasFrame):
             [self.prevclickx,self.prevclicky,self.clickx,self.clicky]:
             x1 = min(self.clickx,self.prevclickx) # type: ignore
             x2 = max(self.clickx,self.prevclickx) # type: ignore
+
+            if self.clickhline is not None: self.clickhline.remove() 
+            if self.clickvline is not None: self.clickvline.remove() 
+            self.clickhline = None
+            self.clickvline = None
+            if self.fbarmin is not None: self.fbarmin.remove()
+            if self.fbarmax is not None: self.fbarmax.remove()
+
+            self.fbarmin = self.ax.axvline(x1,color="black") #BUG: not showing up
+            self.fbarmax = self.ax.axvline(x2,color="black") #BUG: not showing up
         else:
             x1,x2 = 0, 0
+        self.redraw()
 
         return (x1,x2)
+    
+    def redraw(self):
+        # this is an annoying fix but needed to fix the bug from above 
+        self.ax.set_xlim(left=self.min_bin.get(), right=self.max_bin.get())
+        self.canvas.draw()
 
 class LabeledEntry(ctk.CTkFrame):
     '''
@@ -576,7 +591,6 @@ class LoadEntry(ctk.CTkFrame):
             initialfile=initfile, defaultextension=self.defaultextension, \
                 filetypes=self.filetypes)
         if fname != ():
-            print(fname)
             self.load_var.set(fname)
             self.populate()
             self.command()

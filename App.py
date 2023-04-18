@@ -1,4 +1,3 @@
-import os
 import tkinter as tk
 import customtkinter as ctk
 import matplotlib as mpl
@@ -10,7 +9,7 @@ from FilterTab import *
 from ImagingTab import *
 
 class App(ctk.CTk):
-    # TODO: settings memory
+    # TODO: space filtering
     # TODO: object reference passing cleanup
     '''
     Main app window for holding all the other components.
@@ -30,8 +29,8 @@ class App(ctk.CTk):
         try:
             self.recall = RecallFile()
         except Exception as e:
-            self.errors.append(
-                f'Error trying to read or create recall file:', True)
+            tk.messagebox.showerror('Save file error',str(e))
+            exit(-1)
 
         # call matplotlib inits
         self.set_mpl_params()
@@ -49,7 +48,7 @@ class App(ctk.CTk):
             raw_data=self.raw_data, filtered_data=self.filtered_data,\
                 raw_data_updates=self.raw_data_updates, \
                     filtered_data_updates=self.filtered_data_updates, \
-                        recall=self.recall, errors=self.errors)
+                        errors=self.errors)
         self.loadtab.pack(padx=0,pady=0,anchor='center',expand=True,\
             fill='both')
         self.filtertab = FilterTab(master=self.tabs.tab("Filter"),\
@@ -106,6 +105,8 @@ class App(ctk.CTk):
             new_params['numScans'] = self.loadtab.process.settings.numScans.get()
             new_params['beamI'] = self.loadtab.beamI[0].toString()
             new_params['beamS'] = self.loadtab.beamS[0].toString()
+            new_params['fmin'] = self.filtertab.timetab.fmin.get()
+            new_params['fmax'] = self.filtertab.timetab.fmax.get()
         except:
             pass
         self.recall.write_file(new_params, file_name)
@@ -120,17 +121,20 @@ class App(ctk.CTk):
         self.loadtab.process.settings.numScans.set(self.recall.parameters['numScans']) #type:ignore
         self.loadtab.beamI.append(t3.Beam.fromString(self.recall.parameters['beamI']))
         self.loadtab.beamS.append(t3.Beam.fromString(self.recall.parameters['beamS']))
+        self.filtertab.timetab.fmin.set(self.recall.parameters['fmin'])
+        self.filtertab.timetab.fmax.set(self.recall.parameters['fmax'])
         # BUG: So it looks like I am somehow not setting the object reference,
-        # but instead the object itself. For the Settings this is not an issue,
-        # yet for the files it is... I am unsure of the cause. Mostly though it
-        # only affects the entry boxes and prevents them from showing the 
-        # internal data, yet the data is still there. Maybe I just need to 
-        # somehow get the widget to refresh? That's pretty much what I have to
-        # do with my custom stuff below
+        # but instead the object itself for beamI and beamS. For the Settings
+        # this is not an issue, yet for the files it is... I am unsure of the
+        # cause. Mostly though it only affects the entry boxes and prevents them
+        # from showing the internal data, yet the data is still there. Maybe I
+        # just need to somehow get the widget to refresh? That's pretty much
+        # what I have to do with my custom stuff below
 
         try: # Sees how far it can get with refreshing stuff
-            self.loadtab.loader.load_preview(True)
-            self.loadtab.beamSelector.redraw_beams()
+            if len(self.loadtab.inp_file.get()) > 0:
+                self.loadtab.loader.load_preview(True)
+                self.loadtab.beamSelector.redraw_beams()
         except:
             pass
 

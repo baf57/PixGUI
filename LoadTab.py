@@ -15,8 +15,8 @@ class LoadTab(ctk.CTkFrame):
     '''
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, raw_data_updates:CanvasList,\
-                    filtered_data_updates:CanvasList, recall: RecallFile, \
-                        errors:ErrorBox, **kwargs):
+                    filtered_data_updates:CanvasList, errors:ErrorBox, \
+                        **kwargs):
         super().__init__(*args, **kwargs)
 
         # data from initializer
@@ -24,7 +24,6 @@ class LoadTab(ctk.CTkFrame):
         self.filtered_data = filtered_data
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
-        self.recall = recall
         self.errors = errors
 
         # global load data
@@ -48,7 +47,7 @@ class LoadTab(ctk.CTkFrame):
                 errors=self.errors, label_text="Load", label_sticky='left')
         self.beamSelector = BeamSelect(master=self, label_text='Beams',\
             canvas=self.beamCanvas, beamI=self.beamI, beamS=self.beamS, \
-                load_state=self.load_state, recall=self.recall)
+                load_state=self.load_state)
         self.process = ProcessFrame(master=self, inp_file=self.inp_file,\
             calib_file=self.calibration_file, beamI=self.beamI, \
                 beamS=self.beamS, raw_data=self.raw_data, \
@@ -169,7 +168,6 @@ class LoadingFrame(LabeledFrame):
                 if not(reloaded):
                     self.load_state.set('Select beams...') 
             else:
-                print('load error')
                 self.errors.append(f'Please select an input file when loading')
         except Exception as e:
             self.errors.append(f'Exception thrown during load:', True)
@@ -177,8 +175,7 @@ class LoadingFrame(LabeledFrame):
 class BeamSelect(LabeledFrame):
     # TODO: previous beam locations memory
     def __init__(self, *args, canvas:CanvasFrame, beamI:list[t3.Beam], \
-        beamS:list[t3.Beam], load_state:tk.StringVar, recall:RecallFile, \
-            **kwargs):
+        beamS:list[t3.Beam], load_state:tk.StringVar, **kwargs):
         super().__init__(*args, **kwargs)
     
         # data
@@ -186,7 +183,6 @@ class BeamSelect(LabeledFrame):
         self.beamI = beamI
         self.beamS = beamS
         self.load_state = load_state
-        self.recall = recall
         self.beamIString = tk.StringVar(self,'{[]}')
         self.beamSString = tk.StringVar(self,'{[]}')
         self.mode = ''
@@ -384,7 +380,10 @@ class ProcessFrame(LabeledFrame):
     
     def process(self):
         if len(self.calib_file.get()) == 0:
-            self.errors.append('Please select a load file!')
+            self.errors.append('Please select a calibration file!')
+            return
+        if len(self.inp_file.get()) == 0:
+            self.errors.append('Please select an input file!')
             return
         try:
             self.load_state.set('Processing...')

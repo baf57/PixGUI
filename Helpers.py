@@ -51,8 +51,6 @@ class CanvasList:
             self.args.extend(args)
 
     def update_all(self):
-        #print('Updating these canvas functions:')
-        #print([f'    {i.__name__}\n' for i in self.update_functions])
         for (update_function,kwargs) in \
             zip(self.update_functions,self.args):
             update_function(data=self.data, **kwargs)
@@ -60,19 +58,21 @@ class CanvasList:
 class RecallFile:
     def __init__(self):
         self.file_path = os.path.join(os.path.curdir, 'recall.t3w')
-        self.fieldnames = ['file', 'calib_file', 'spaceWindow', 'timeWindow', \
-                'coincWindow', 'clusterRange', 'numScans', 'beamI', 'beamS']
-        self.parameters = {'file': os.path.join(os.path.curdir, ''), \
-                   'calib_file': os.path.join(os.path.curdir,\
-                                'tpx3_workshop','config',\
-                                'TOT correction curve new firmware GST.txt'),\
+        self.fieldnames = ['version', 'file', 'calib_file', 'spaceWindow', \
+            'timeWindow', 'coincWindow', 'clusterRange', 'numScans', 'beamI', \
+                'beamS', 'fmin', 'fmax']
+        self.parameters = {'version': 1, \
+                   'file': '', \
+                   'calib_file': '',\
                     'spaceWindow': 20, \
                     'timeWindow': 250, \
                     'coincWindow': 1000, \
                     'clusterRange': 30, \
                     'numScans': 20, \
                     'beamI': t3.Beam(0,0,0,0).toString(), \
-                    'beamS': t3.Beam(0,0,0,0).toString()}
+                    'beamS': t3.Beam(0,0,0,0).toString(), \
+                    'fmin': -200, \
+                    'fmax': 200}
 
         # check if the recall file exists. If it doesn't then make it
         if not(os.path.exists(self.file_path)):
@@ -94,12 +94,22 @@ class RecallFile:
             w.writerow(self.parameters)
 
     def read_file(self):
-        with open(self.file_path, 'r') as f:
-            r = csv.DictReader(f, self.fieldnames)
-            for line in r: # sets twice, but needs to skip header
-                self.parameters = line
-        
-        #print(self.parameters) # for testing
+        try:   
+            with open(self.file_path, 'r') as f:
+                prelim = csv.reader(f) # check version
+                fields = prelim.__next__()
+                assert fields[0] == 'version'
+                values = prelim.__next__()
+                assert values[0] == str(self.parameters['version'])
+                
+            with open(self.file_path, 'r') as f:
+                r = csv.DictReader(f, self.fieldnames)
+                for line in r: # sets twice, but needs to skip header
+                    self.parameters = line
+        except:
+            raise Exception('Save file is wrong version!\n'+\
+                            'Please note any needed settings from "recall.t3w" and then delte it!')
+
 
     def write_file(self, new_parameters:dict, file_name:str=''):
         # BUG: same beamI and beamS bug as above
