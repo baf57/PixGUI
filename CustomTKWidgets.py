@@ -446,17 +446,18 @@ class HistogramCanvas(CanvasFrame):
 
         self.prevclickx = self.clickx
         self.clickx = self.x # closest integer value
-        self.prevclicky = self.clicky
-        self.clicky = self.y # closest integer value
 
         self.redraw() # I fixed the bug here
 
     def get_clicks(self) -> tuple[int,int]:
         # Return clicks as x1,x2
         if not None in \
-            [self.prevclickx,self.prevclicky,self.clickx,self.clicky]:
+            [self.prevclickx,self.clickx]:
             x1 = min(self.clickx,self.prevclickx) # type: ignore
             x2 = max(self.clickx,self.prevclickx) # type: ignore
+
+            self.clickx = None
+            self.prevclickx = None
 
             if self.clickhline is not None: self.clickhline.remove() 
             if self.clickvline is not None: self.clickvline.remove() 
