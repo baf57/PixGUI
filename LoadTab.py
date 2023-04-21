@@ -11,7 +11,7 @@ import tpx3_toolkit.viewer as t3view # type: ignore
 
 class LoadTab(ctk.CTkFrame):
     '''
-    The tab where all of the loading stuff occurs
+    The tab where all of the loading occurs
     '''
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, raw_data_updates:CanvasList,\
@@ -28,7 +28,6 @@ class LoadTab(ctk.CTkFrame):
 
         # global load data
         self.inp_file = tk.StringVar(self)
-        self.calibration_file = tk.StringVar()
 
         # default settings
         self.beamI = []
@@ -41,46 +40,67 @@ class LoadTab(ctk.CTkFrame):
 
         # init widgets
         self.beamCanvas = CanvasFrame(master=self, label_text='Beam Selector',\
-            mode='save only', cwidth=800, cheight=800)
+                                      mode='save only', cwidth=800, cheight=800)
         self.loader = LoadingFrame(master=self, inp_file=self.inp_file,\
-            beamCanvas = self.beamCanvas, load_state=self.load_state, \
-                errors=self.errors, label_text="Load", label_sticky='left')
+                                   beamCanvas = self.beamCanvas, \
+                                   load_state=self.load_state, \
+                                   errors=self.errors, label_text="Load", \
+                                   label_sticky='left')
         self.beamSelector = BeamSelect(master=self, label_text='Beams',\
-            canvas=self.beamCanvas, beamI=self.beamI, beamS=self.beamS, \
-                load_state=self.load_state)
+                                       canvas=self.beamCanvas, \
+                                       beamI=self.beamI, \
+                                       beamS=self.beamS, \
+                                       load_state=self.load_state)
         self.process = ProcessFrame(master=self, inp_file=self.inp_file,\
-            calib_file=self.calibration_file, beamI=self.beamI, \
-                beamS=self.beamS, raw_data=self.raw_data, \
-                    filtered_data=self.filtered_data,\
-                        load_state = self.load_state, \
-                            raw_data_updates=self.raw_data_updates, \
-                                filtered_data_updates=self.filtered_data_updates, \
+                                    beamI=self.beamI, \
+                                    beamS=self.beamS, raw_data=self.raw_data, \
+                                    filtered_data=self.filtered_data,\
+                                    load_state = self.load_state, \
+                                    raw_data_updates=self.raw_data_updates, \
+                                    filtered_data_updates=self.filtered_data_updates, \
                                     errors=self.errors, \
-                                        label_text="Process", \
-                                            label_sticky='left')
+                                    label_text="Process", \
+                                    label_sticky='left')
 
         # layout widgets
         self.grid_columnconfigure(1,weight=1)
 
         self.beamCanvas.grid(row=0,column=0,rowspan=4,padx=5,pady=5,\
-            sticky='nsew')
+                             sticky='nsew')
         self.loader.grid(row=0,column=1,padx=5,pady=5,sticky='ew')
         self.beamSelector.grid(row=1,column=1,padx=5,pady=5,sticky='ew')
         self.process.grid(row=2,column=1,padx=5,pady=5,sticky='ew')
         self.errors.grid(in_=self,row=3,column=1,padx=5,pady=5,sticky='ew')
         self.errors.lift() # needed to not draw behind frame since it was
                            # created before the frame was
+
+    def recall(self, recall:RecallFile):
+        self.inp_file.set(recall.parameters['file'])
+        self.loader.load_preview(True)
+
+        self.beamI.append(t3.Beam.fromString(recall.parameters['beamI']))
+        self.beamS.append(t3.Beam.fromString(recall.parameters['beamS']))
+        self.beamSelector.redraw_beams()
+
+    def save(self, new_params:dict):
+        if len(self.inp_file.get()) > 0:
+            new_params['file'] = self.inp_file.get()
+        if len(self.beamI) > 0:
+            new_params['beamI'] = self.beamI[0].toString()
+        if len(self.beamS) > 0:
+            new_params['beamS'] = self.beamS[0].toString()
+
         
 class SettingsFrame(ctk.CTkFrame):
     '''
     A settings frame which contains some entry boxes with default values for
     changing the settings.
     '''
-    def __init__(self, *args, calibration_file, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # init data
-        self.calibration_file = calibration_file
+        # init data  
+        self.calibration_file = tk.StringVar()
         self.spaceWindow = tk.IntVar(self,20)
         self.timeWindow = tk.IntVar(self,250)
         self.coincWindow = tk.IntVar(self,1000)
@@ -90,19 +110,20 @@ class SettingsFrame(ctk.CTkFrame):
         # init widgets
         self.spaceLabel = ctk.CTkLabel(self,text='Space Window:')
         self.spaceEntry = LabeledEntry(master=self, \
-            var_ref=self.spaceWindow, label_text='pixels') #type: ignore
+                                       var_ref=self.spaceWindow, \
+                                       label_text='pixels')
         self.timeLabel = ctk.CTkLabel(self,text='Time Window:')
         self.timeEntry = LabeledEntry(master=self, \
-            var_ref=self.timeWindow, label_text='ns') #type: ignore
+            var_ref=self.timeWindow, label_text='ns')
         self.coincLabel = ctk.CTkLabel(self,text='Coincidences Time Window:')
         self.coincEntry = LabeledEntry(master=self, \
-            var_ref=self.coincWindow, label_text='ns') #type: ignore
+            var_ref=self.coincWindow, label_text='ns')
         self.clusterLabel = ctk.CTkLabel(self,text='Cluster Range:')
         self.clusterEntry = ctk.CTkEntry(self, width=70, \
-            textvariable=self.clusterRange) #type: ignore
+            textvariable=self.clusterRange)
         self.scansLabel = ctk.CTkLabel(self,text='Number of Scans:')
         self.scansEntry = LabeledEntry(master=self, \
-            var_ref=self.numScans, label_text='scans') #type: ignore
+            var_ref=self.numScans, label_text='scans')
         self.configLabel = ctk.CTkLabel(self,text='Configuration file:')
         self.configEntry = LoadEntry(master=self,\
             defaultextension='.txt', filetypes=[('Text file','*.txt')],\
@@ -126,6 +147,24 @@ class SettingsFrame(ctk.CTkFrame):
         self.configLabel.grid(row=5,column=0,padx=5,pady=5,sticky='e')
         self.configEntry.grid(row=5,column=1,padx=(0,5),pady=5,sticky='ew')
 
+    def recall(self, recall:RecallFile):
+        self.calibration_file.set(recall.parameters['calib_file'])
+        self.spaceWindow.set(recall.parameters['spaceWindow']) #type:ignore
+        self.timeWindow.set(recall.parameters['timeWindow']) #type:ignore
+        self.coincWindow.set(recall.parameters['coincWindow']) #type:ignore
+        self.clusterRange.set(recall.parameters['clusterRange']) #type:ignore
+        self.numScans.set(recall.parameters['numScans']) #type:ignore
+
+    def save(self, new_params:dict):
+        if len(self.calibration_file.get()) > 0:
+            new_params['calib_file'] = self.calibration_file.get()
+
+        new_params['spaceWindow'] = self.spaceWindow.get()
+        new_params['timeWindow'] = self.timeWindow.get()
+        new_params['coincWindow'] = self.coincWindow.get()
+        new_params['clusterRange'] = self.clusterRange.get()
+        new_params['numScans'] = self.numScans.get()
+
 class LoadingFrame(LabeledFrame):
     def __init__(self, *args, inp_file:tk.StringVar, beamCanvas:CanvasFrame,\
         load_state:tk.StringVar, errors:ErrorBox, **kwargs):
@@ -146,7 +185,7 @@ class LoadingFrame(LabeledFrame):
         self.load_dialog.populate()
         self.reload_button = ctk.CTkButton(master=f, \
                                            text="Reload entire previous state",\
-                                            command=self.master.master.master.master.recallAll) #type:ignore
+                                           command=self.master.master.master.master.recallAll) #type:ignore
         # this is a reference to a function of top level app, but I mean... if I
         # assume it's a duck, I should also assume it can quack
         
@@ -166,6 +205,7 @@ class LoadingFrame(LabeledFrame):
                 self.beamCanvas.ax.set_xlabel("$X$ (pixels)")
                 self.beamCanvas.ax.set_ylabel("$Y$ (pixels)")
                 self.beamCanvas.redraw()
+                self.beamCanvas.init_home()
                 if not(reloaded):
                     self.load_state.set('Select beams...') 
             else:
@@ -340,16 +380,15 @@ class BeamSelect(LabeledFrame):
             command=self.enable_signal_select)
 
 class ProcessFrame(LabeledFrame):
-    def __init__(self, *args, inp_file:tk.StringVar, calib_file:tk.StringVar, \
-        beamI:list[t3.Beam], beamS:list[t3.Beam], raw_data:ReferentialNpArray, \
-            filtered_data:ReferentialNpArray, load_state:tk.StringVar, \
-                raw_data_updates:CanvasList, filtered_data_updates:CanvasList, \
-                    errors:ErrorBox, **kwargs):
+    def __init__(self, *args, inp_file:tk.StringVar, beamI:list[t3.Beam], \
+                 beamS:list[t3.Beam], raw_data:ReferentialNpArray, \
+                 filtered_data:ReferentialNpArray, load_state:tk.StringVar, \
+                 raw_data_updates:CanvasList, filtered_data_updates:CanvasList,\
+                 errors:ErrorBox, **kwargs):
         super().__init__(*args, **kwargs)
 
         # init data
         self.inp_file = inp_file
-        self.calib_file = calib_file
         self.beamI = beamI
         self.beamS = beamS
         self.raw_data = raw_data
@@ -361,9 +400,9 @@ class ProcessFrame(LabeledFrame):
 
         # create widgets
         f = self.frame
-        self.settings = SettingsFrame(master=f,calibration_file=self.calib_file)
+        self.settings = SettingsFrame(master=f)
         self.settings_dropdown = DropDownFrame(master=f, label_text='Settings',\
-            frame=self.settings)
+                                               frame=self.settings)
         self.load_bar = ctk.CTkProgressBar(master=f,mode='determinate')
         self.load_bar.set(0)
         self.load_button = ctk.CTkButton(master=f,width=0,text='Process',\
@@ -380,7 +419,7 @@ class ProcessFrame(LabeledFrame):
             sticky='ew')
     
     def process(self):
-        if len(self.calib_file.get()) == 0:
+        if len(self.settings.calibration_file.get()) == 0:
             self.errors.append('Please select a calibration file!')
             return
         if len(self.inp_file.get()) == 0:
@@ -390,13 +429,14 @@ class ProcessFrame(LabeledFrame):
             self.load_state.set('Processing...')
             self.load_bar.configure(mode='indeterminate')
             thread = ReturnThread(target=t3.process_Coincidences, \
-                            args=(self.inp_file.get(), self.calib_file.get(), \
-                                  self.beamS, self.beamI, \
-                                   self.settings.timeWindow.get(),\
-                                    self.settings.spaceWindow.get(),\
-                                     self.settings.coincWindow.get(),\
-                                      self.settings.clusterRange.get(),\
-                                       self.settings.numScans.get()))
+                                  args=(self.inp_file.get(), \
+                                        self.settings.calibration_file.get(), \
+                                        self.beamS, self.beamI, \
+                                        self.settings.timeWindow.get(),\
+                                        self.settings.spaceWindow.get(),\
+                                        self.settings.coincWindow.get(),\
+                                        self.settings.clusterRange.get(),\
+                                        self.settings.numScans.get()))
             thread.start()
             self.monitor(thread)
         except Exception as e:

@@ -7,9 +7,9 @@ from CustomTKWidgets import *
 
 class AnalysisTab(ctk.CTkFrame):
     '''
-    The tab where all of the loading stuff occurs
+    The tab where all of the analysis work occurs
     '''
-    def __init__(self, *args, filtered_data:ReferenceError, \
+    def __init__(self, *args, filtered_data:ReferentialNpArray, \
                  filtered_data_updates, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -19,18 +19,24 @@ class AnalysisTab(ctk.CTkFrame):
 
         # add sub-tabs
         self.tabs = ctk.CTkTabview(self)
-        self.tabs.add("Correlations")
+        self.tabs.add("Traces")
+        self.tabs.add("Correlation")
         self.left_align_tabs()
-        self.tabs.set("Correlations")
+        self.tabs.set("Traces")
 
         # add widgets to tabs
-        self.correlationstab = CorrelationsTab(master=self.tabs.tab("Correlations"),\
+        self.tracestab = TracesTab(master=self.tabs.tab("Traces"),\
+                                filtered_data=self.filtered_data, \
+                                filtered_data_updates=self.filtered_data_updates)
+        self.correlationtab = CorrelationTab(master=self.tabs.tab("Correlation"),\
                                 filtered_data=self.filtered_data, \
                                 filtered_data_updates=self.filtered_data_updates)
 
         # layout tabs
-        self.correlationstab.pack(padx=0,pady=0,anchor='center',expand=True,\
+        self.tracestab.pack(padx=0,pady=0,anchor='center',expand=True,\
                                   fill='both')
+        self.correlationtab.pack(padx=0,pady=0,anchor='center',expand=True,\
+                                 fill='both')
         self.tabs.pack(padx=5, pady=0, anchor='center',expand=True,fill='both')
 
     def left_align_tabs(self):
@@ -44,7 +50,7 @@ class AnalysisTab(ctk.CTkFrame):
                 pady=self.tabs._apply_widget_scaling(max(\
                 self.tabs._corner_radius, self.tabs._border_width)))
             
-class CorrelationsTab(ctk.CTkFrame):
+class TracesTab(ctk.CTkFrame):
     def __init__(self, *args, filtered_data:ReferentialNpArray, \
                  filtered_data_updates:CanvasList, **kwargs):
         super().__init__(*args, **kwargs)
@@ -62,10 +68,10 @@ class CorrelationsTab(ctk.CTkFrame):
         self.ytracemax = tk.IntVar(self,0)
         self.xfwhmmin = tk.IntVar(self,0)
         self.xfwhmmax = tk.IntVar(self,0)
-        self.xfwhm = tk.IntVar(self,0)
+        self.xfwhm = tk.DoubleVar(self,0)
         self.yfwhmmin = tk.IntVar(self,0)
         self.yfwhmmax = tk.IntVar(self,0)
-        self.yfwhm = tk.IntVar(self,0)
+        self.yfwhm = tk.DoubleVar(self,0)
 
         # define widgets
         self.correlations = TraceCanvas(master=self, mode='cursor', \
@@ -117,7 +123,7 @@ class CorrelationsTab(ctk.CTkFrame):
         self.traceinfo_x.grid(row=0,column=2,padx=(3,5),pady=(5,3),sticky='ew')
         self.traceinfo_y.grid(row=1,column=2,padx=(3,5),pady=(0,5),sticky='ew')
 
-    def update_correlations(self, data):
+    def update_correlations(self, data:ReferentialNpArray):
         self.correlations.ax_1.clear()
         self.correlations.ax_2.clear()
         self.correlations.ax_1.set_xlabel("$X_i$ (pixels)")
@@ -129,6 +135,7 @@ class CorrelationsTab(ctk.CTkFrame):
         self.correlations.show_1(self.x_loc.get())
         self.correlations.show_2(self.y_loc.get())
         self.correlations.redraw()
+        self.correlations.init_home()
     
     def update_trace_1(self, data:ReferentialNpArray):
         (loc1, loc2) = self.correlations.get_clicks()
@@ -159,9 +166,9 @@ class CorrelationsTab(ctk.CTkFrame):
         self.correlations.redraw()
 
         (fwhmmin,fwhmmax,fwhm) = self.fwhm_avg(allout, self.x_orientation)
-        self.xfwhmmin.set((fwhmmin))
-        self.xfwhmmax.set((fwhmmax))
-        self.xfwhm.set((fwhm))
+        self.xfwhmmin.set(fwhmmin)
+        self.xfwhmmax.set(fwhmmax)
+        self.xfwhm.set(fwhm)
     
     def update_trace_2(self, data:ReferentialNpArray):
         (loc1, loc2) = self.correlations.get_clicks()
@@ -192,11 +199,12 @@ class CorrelationsTab(ctk.CTkFrame):
         self.correlations.redraw()
 
         (fwhmmin,fwhmmax,fwhm) = self.fwhm_avg(allout, self.y_orientation)
-        self.yfwhmmin.set((fwhmmin))
-        self.yfwhmmax.set((fwhmmax))
-        self.yfwhm.set((fwhm))
+        self.yfwhmmin.set(fwhmmin)
+        self.yfwhmmax.set(fwhmmax)
+        self.yfwhm.set(fwhm)
 
-    def fwhm_avg(self,view:np.ndarray,orientation:tk.StringVar):
+    def fwhm_avg(self,view:np.ndarray,orientation:tk.StringVar) \
+                                                        -> tuple[int,int,float]:
         fwhm_list = []
         if orientation.get() == 'x':
             halfmaxs = np.max(view,axis=0,keepdims=True) / 2
@@ -221,15 +229,14 @@ class CorrelationsTab(ctk.CTkFrame):
         fwhm_list = np.array(fwhm_list)
         fwhm_list = fwhm_list[abs(fwhm_list - np.mean(fwhm_list)) < 2 * np.std(fwhm_list)]
 
-        return (np.min(fwhm_list), np.max(fwhm_list), np.mean(fwhm_list))
-
+        return (np.min(fwhm_list), np.max(fwhm_list), np.mean(fwhm_list)) #type:ignore
 
 class TraceControl(LabeledFrame):
     def __init__(self, *args, loc:tk.IntVar, direction:str, \
                  orientation:tk.StringVar, tracemin:tk.IntVar,\
                  tracemax:tk.IntVar, redrawcommand:Callable, \
                  filtered_data:ReferentialNpArray, fwhmmin:tk.IntVar, \
-                 fwhmmax:tk.IntVar, fwhm:tk.IntVar, **kwargs):
+                 fwhmmax:tk.IntVar, fwhm:tk.DoubleVar, **kwargs):
         super().__init__(*args, **kwargs)
         self.loc = loc
         self.redrawcommand = redrawcommand
@@ -275,3 +282,81 @@ class TraceControl(LabeledFrame):
 
     def update_redraw(self):
         self.redrawcommand(data=self.filtered_data)
+
+class CorrelationTab(ctk.CTkFrame):
+    def __init__(self, *args, filtered_data:ReferentialNpArray, \
+        filtered_data_updates:CanvasList, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # init data
+        self.filtered_data = filtered_data
+        self.filtered_data_updates = filtered_data_updates
+
+        # create widgets
+        self.plot = CanvasFrame(master=self, label_text='X-Y Correlations', \
+                                mode='cursor', zoom=True, cwidth=800, \
+                                cheight=800)
+        self.plotcontrol = XYControl(master=self, label_text='X-Y Control')
+
+        # modify widgets
+        self.filtered_data_updates.append([self.update_plot])
+
+        # layout widgets
+        self.columnconfigure(1,weight=1)
+        self.plot.grid(row=0,column=0,padx=(5,0),pady=5,sticky='ew')
+        self.plotcontrol.grid(row=0,column=1,padx=(3,5),pady=5,sticky='ew')
+
+    def update_plot(self, data:ReferentialNpArray):
+        self.plot.ax.clear()
+        self.plot.ax.set_title('Coincidences')
+
+        (fig, view) = t3view.plot_coincidence_xy(data.get(), \
+                                                 fig=self.plot.figure)
+
+        max_ind = np.unravel_index(view.argmax(), view.shape)
+        self.plotcontrol.update_center(np.mean(max_ind[0]), np.mean(max_ind[1])) #type:ignore
+        self.plotcontrol.fwhm_x.set(self.fwhm(\
+                                    view[:,int(self.plotcontrol.center_pos_y)])) # type:ignore
+        self.plotcontrol.fwhm_y.set(self.fwhm(\
+                                    view[int(self.plotcontrol.center_pos_x),:])) # type:ignore
+
+        self.plot.redraw()
+        self.plot.init_home()
+
+    def fwhm(self, view) -> int:
+        halfmax = np.max(view) / 2
+        indc = np.nonzero(view >= halfmax)[0]
+
+        return (indc[-1]+1) - indc[0]
+
+class XYControl(LabeledFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # init data
+        self.center_pos_x = 0
+        self.center_pos_y = 0
+        self.center_pos = tk.StringVar(self, '(0,0)')
+        self.fwhm_x = tk.IntVar(self, -1)
+        self.fwhm_y = tk.IntVar(self, -1)
+
+        # create widgets
+        f = self.get_frame()
+        self.pos_view = LabeledEntry(master=f, var_ref=self.center_pos, \
+                                     label_text='Center: ', label_side='before')
+        self.fwhm_x_view = LabeledEntry(master=f, var_ref=self.fwhm_x, \
+                                        label_text='FWHM_x: ', \
+                                        label_side='before')
+        self.fwhm_y_view = LabeledEntry(master=f, var_ref=self.fwhm_y, \
+                                        label_text='FWHM_y: ', \
+                                        label_side='before')
+
+        # layout widgets
+        self.pos_view.grid(row=0,column=0,padx=5,pady=(5,0),sticky='ew')
+        self.fwhm_x_view.grid(row=1,column=0,padx=5,pady=3,sticky='ew')
+        self.fwhm_y_view.grid(row=2,column=0,padx=5,pady=(0,5),sticky='ew')
+
+    def update_center(self, x:float, y:float):
+        self.center_pos_x = x
+        self.center_pos_y = y
+        self.center_pos.set(f'({self.center_pos_x},{self.center_pos_y})')

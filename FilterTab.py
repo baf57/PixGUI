@@ -8,7 +8,7 @@ import tpx3_toolkit.viewer as t3view
 class FilterTab(ctk.CTkFrame):
     # TODO: Space filter
     '''
-    The tab where all of the data filtering stuff occurs
+    The tab where all of the data filtering occurs
     '''
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, \
@@ -127,6 +127,7 @@ class TimeTab(ctk.CTkFrame):
                               max_bin=self.max_bin.get(),\
                                   fig = self.histogram.figure)
         self.histogram.redraw()
+        self.histogram.init_home()
 
     def get_apply_filter(self):
         dt = self.raw_data.get()[1,2,:] - self.raw_data.get()[0,2,:]
@@ -144,6 +145,14 @@ class TimeTab(ctk.CTkFrame):
 
         self.filtered_data.set(self.raw_data.get()[:,:,f])
         self.filtered_data_updates.update_all()
+
+    def recall(self, recall:RecallFile):
+        self.fmin.set(recall.parameters['fmin']) #type:ignore
+        self.fmax.set(recall.parameters['fmax']) #type:ignore
+
+    def save(self, new_params:dict):
+        new_params['fmin'] = self.fmin.get()
+        new_params['fmax'] = self.fmax.get()
 
 class TimeInfo(LabeledFrame):
     def __init__(self, *args, raw_data:ReferentialNpArray, \
@@ -290,6 +299,7 @@ class SpaceTab(ctk.CTkFrame):
 
         t3view.plot_correlations(data.get(), fig=self.correlations.figure)
         self.correlations.redraw()
+        self.correlations.init_home()
 
 class SlopeControl(LabeledFrame):
     def __init__(self, *args, slope:tk.DoubleVar, direction:str, \

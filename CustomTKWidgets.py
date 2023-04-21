@@ -59,8 +59,8 @@ class CanvasFrame(LabeledFrame):
     lines in order to help with picking exact positions on the graph.
     '''
     def __init__(self, *args, figsize:tuple[float,float]=(6.0,6.0), \
-        mode:Literal['cursor','save only','preview']='cursor', cwidth=100, \
-            cheight=100, **kwargs):
+        mode:Literal['cursor','save only','preview']='cursor', zoom=False, \
+            cwidth=100, cheight=100, **kwargs):
         super().__init__(*args, width=cwidth, height=cheight, **kwargs)
 
         # init data
@@ -68,6 +68,24 @@ class CanvasFrame(LabeledFrame):
         self.click = None
         self.axes_enter = None
         self.axes_leave = None
+        self.state = 'normal'
+        self.x = 0
+        self.y = 0
+        self.xlim = (0,0)
+        self.ylim = (0,0)
+        self.xlimh = (-np.inf,np.inf)
+        self.ylimh = (-np.inf,np.inf)
+        self.zoomxs = []
+        self.zoomys = []
+        self.clickx = None
+        self.clicky = None
+        self.clicks = 0
+        self.prevclickx = None
+        self.prevclicky = None
+        self.lastvline = None
+        self.lasthline = None
+        self.clickvline = None
+        self.clickhline = None
 
         # create 2x1 grid where the graph object is resizeable and the statusbar
         # is  not
@@ -87,7 +105,7 @@ class CanvasFrame(LabeledFrame):
         self.ax = self.figure.add_axes([offset,offset,width,width])
 
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.frame)
-        self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=2,\
+        self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4,\
             sticky='nsew',padx=3,pady=3)
         self.canvas.get_tk_widget().configure(width=cwidth,height=cheight)
 
@@ -103,25 +121,31 @@ class CanvasFrame(LabeledFrame):
         if mode == 'cursor' or mode == 'save only':
             self.seperator = ttk.Separator(master=self.frame,\
                 orient='horizontal')
-            self.seperator.grid(row=1,column=0,columnspan=2,sticky='ew')
-
-        self.x = 0
-        self.y = 0
-        self.clickx = None
-        self.clicky = None
-        self.prevclickx = None
-        self.prevclicky = None
-        self.lastvline = None
-        self.lasthline = None
-        self.clickvline = None
-        self.clickhline = None
+            self.seperator.grid(row=1,column=0,columnspan=4,sticky='ew')
 
         if mode == 'cursor':
             self.statusbartext = tk.StringVar(self,\
                 f"Mouse Position ({self.x:.0f},{self.y:.0f})")
             self.statusbar = ctk.CTkLabel(master=self.frame,\
                 textvariable=self.statusbartext, height=1)
-            self.statusbar.grid(row=2, column=0, sticky='w')
+            self.statusbar.grid(row=2, column=0, padx=2, sticky='w')
+        if zoom:
+            zoomicon = ctk.CTkImage(\
+                Image.open(\
+                    os.path.dirname(os.path.realpath(__file__))+\
+                        r'/assets/zoom.png'))
+            homeicon = ctk.CTkImage(\
+                Image.open(\
+                    os.path.dirname(os.path.realpath(__file__))+\
+                        r'/assets/home.png'))
+            self.zoombutton = ctk.CTkButton(master=self.frame, image=zoomicon, \
+                command=self.zoom_mode, text ='', border_width=0, \
+                    border_spacing=0, width=28, height=28)
+            self.homebutton = ctk.CTkButton(master=self.frame, image=homeicon, \
+                command=self.go_home, text ='', border_width=0, \
+                    border_spacing=0, width=28, height=28)
+            self.zoombutton.grid(row=2, column=1, padx=2, stick='nse')
+            self.homebutton.grid(row=2, column=2, padx=2, stick='nse')
         if mode == 'cursor' or mode == 'save only':
             saveicon = ctk.CTkImage(\
                 Image.open(\
@@ -129,9 +153,39 @@ class CanvasFrame(LabeledFrame):
                         r'/assets/save.png'))
             self.savebutton = ctk.CTkButton(master=self.frame, image=saveicon, \
                 command=self.save_image, text ='', border_width=0, \
-                    border_spacing=0, width=28)
-            self.savebutton.grid(row=2, column=1, sticky='nsew',pady=3)
+                    border_spacing=0, width=28, height=28)
+            self.savebutton.grid(row=2, column=3, padx=2, sticky='nsew')
 
+        self.redraw()
+
+    def zoom_mode(self):
+        self.zoomxs = []
+        self.zoomys = []
+        self.clicks = 0
+        self.state = 'zoom'
+        self.update_statusbar()
+
+    def zoom(self):
+        self.xlim = (np.min(self.zoomxs), np.max(self.zoomxs))
+        self.ylim = (np.min(self.zoomys), np.max(self.zoomys))
+
+        self.ax.set_xlim(self.xlim)
+        self.ax.set_ylim(self.ylim) #type:ignore
+
+        self.state = 'normal'
+        self.redraw()
+
+    def init_home(self):
+        if self.xlimh[1] == np.inf:
+            self.xlimh = self.ax.get_xlim()
+            self.ylimh = self.ax.get_ylim()
+
+    def go_home(self):
+        self.ax.set_xlim(self.xlimh)
+        self.ax.set_ylim(self.ylimh) #type:ignore
+
+        self.state = 'normal'
+        self.update_statusbar()
         self.redraw()
     
     def redraw(self):
@@ -154,7 +208,10 @@ class CanvasFrame(LabeledFrame):
             self.update_cursor()
 
     def update_statusbar(self):
-        self.statusbartext.set(f"Mouse Position ({self.x:.0f},{self.y:.0f})")
+        if self.state == 'normal':
+            self.statusbartext.set(f"Mouse Position ({self.x:.0f},{self.y:.0f})")
+        elif self.state == 'zoom':
+            self.statusbartext.set(f"ZOOM: Mouse Position ({self.x:.0f},{self.y:.0f})")
 
     def update_cursor(self):
         if self.lastvline is not None: self.lastvline.remove()
@@ -182,10 +239,17 @@ class CanvasFrame(LabeledFrame):
         else:
             self.clickhline = self.ax.axhline(self.y,color="gray",ls=":")
 
-        self.prevclickx = self.clickx
-        self.clickx = self.x # closest integer value
-        self.prevclicky = self.clicky
-        self.clicky = self.y # closest integer value
+        if self.state == 'normal':
+            self.prevclickx = self.clickx
+            self.clickx = self.x # closest integer value
+            self.prevclicky = self.clicky
+            self.clicky = self.y # closest integer value
+        elif self.state == 'zoom':
+            self.clicks = self.clicks + 1
+            self.zoomxs.append(self.x)
+            self.zoomys.append(self.y)
+            if self.clicks == 2:
+                self.zoom()
 
         self.redraw()
 
@@ -210,7 +274,7 @@ class CanvasFrame(LabeledFrame):
         if f is not None:
             self.figure.savefig(os.path.realpath(f.name),dpi=100)
 
-    def update_mode(self,mode:str):
+    def update_mode(self,mode:str,zoom=False):
         if not(self.mouse_move is None):
             self.canvas.mpl_disconnect(self.mouse_move)
             self.canvas.mpl_disconnect(self.click) #type:ignore
@@ -220,6 +284,8 @@ class CanvasFrame(LabeledFrame):
         if hasattr(self,'statusbar'): self.statusbar.grid_forget()
         if hasattr(self,'seperator'): self.seperator.grid_forget()
         if hasattr(self,'savebutton'): self.savebutton.grid_forget()
+        if hasattr(self,'zoombutton'): self.zoombutton.grid_forget()
+        if hasattr(self,'homebutton'): self.homebutton.grid_forget()
         if not(self.lasthline is None): 
             self.lasthline.remove()
             self.lasthline = None
@@ -261,16 +327,35 @@ class CanvasFrame(LabeledFrame):
                 command=self.save_image, text ='', border_width=0, \
                     border_spacing=0, width=28)
             self.savebutton.grid(row=2, column=1, sticky='nsew',pady=3)
+        if zoom:
+            zoomicon = ctk.CTkImage(\
+                Image.open(\
+                    os.path.dirname(os.path.realpath(__file__))+\
+                        r'/assets/zoom.png'))
+            homeicon = ctk.CTkImage(\
+                Image.open(\
+                    os.path.dirname(os.path.realpath(__file__))+\
+                        r'/assets/home.png'))
+            self.zoombutton = ctk.CTkButton(master=self.frame, image=zoomicon, \
+                command=self.zoom_mode, text ='', border_width=0, \
+                    border_spacing=0, width=28, height=28)
+            self.homebutton = ctk.CTkButton(master=self.frame, image=homeicon, \
+                command=self.go_home, text ='', border_width=0, \
+                    border_spacing=0, width=28, height=28)
+            self.zoombutton.grid(row=2, column=1, padx=2, stick='nse')
+            self.homebutton.grid(row=2, column=2, padx=2, stick='nse')
 
 class SubplotCanvas(CanvasFrame):
     def __init__(self, *args, axis_1_label:str='', axis_2_label:str='', \
                  **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.figure.delaxes(self.ax)
+        self.figure.delaxes(self.ax) # type: ignore
         self.ax = None
-        self.ax_1 = self.figure.add_subplot(211)
-        self.ax_2 = self.figure.add_subplot(212)
+        self.ax_1 = self.figure.add_subplot(211) # type: ignore
+        self.ax_2 = self.figure.add_subplot(212) # type: ignore
+        self.xlimh2 = self.xlim
+        self.ylimh2 = self.ylim
 
         self.figure.tight_layout()
         self.figure.subplots_adjust(hspace=0.25,left=0.15)
@@ -287,6 +372,23 @@ class SubplotCanvas(CanvasFrame):
     def return_mouse(self,event):
         self.configure(cursor="")
         self.ax = None
+
+    def init_home(self):
+        if self.xlimh[1] == np.inf:
+            self.xlimh = self.ax_1.get_xlim()
+            self.ylimh = self.ax_1.get_ylim()
+            self.xlimh2 = self.ax_2.get_xlim()
+            self.ylimh2 = self.ax_2.get_ylim()
+
+    def go_home(self):
+        self.ax_1.set_xlim(self.xlimh)
+        self.ax_1.set_ylim(self.ylimh) #type:ignore
+        self.ax_2.set_xlim(self.xlimh2)
+        self.ax_2.set_ylim(self.ylimh2) #type:ignore
+
+        self.redraw()
+        self.update_statusbar()
+        self.state = 'normal'
 
 class AngleCanvas(SubplotCanvas):
     # This whole class is less than optimal, but it works so I'm leaving it
@@ -433,22 +535,22 @@ class TraceCanvas(SubplotCanvas):
 
     def clicked(self,event):
         if self.ax is self.ax_1:
-            while len(self.ax.lines) > 0: 
-                self.ax.lines[-1].remove()
-            if self.orientation.get() == 'x':
-                self.clickhline = self.ax.axhline(self.y, color='grey')
+            while len(self.ax.lines) > 0: #type:ignore
+                self.ax.lines[-1].remove() #type:ignore
+            if self.orientation.get() == 'x': #type:ignore
+                self.clickhline = self.ax.axhline(self.y, color='grey') #type:ignore
                 self.clickx = self.y
             else:
-                self.clickhline = self.ax.axvline(self.x, color='grey')
+                self.clickhline = self.ax.axvline(self.x, color='grey') #type:ignore
                 self.clickx = self.x
         elif self.ax is self.ax_2:
-            while len(self.ax.lines) > 0: 
-                self.ax.lines[-1].remove()
-            if self.orientation.get() == 'x':
-                self.clickvline = self.ax.axhline(self.y, color='grey')
+            while len(self.ax.lines) > 0: #type:ignore
+                self.ax.lines[-1].remove() #type:ignore
+            if self.orientation.get() == 'x': #type:ignore
+                self.clickvline = self.ax.axhline(self.y, color='grey') #type:ignore
                 self.clicky = self.y
             else:
-                self.clickvline = self.ax.axvline(self.x, color='grey')
+                self.clickvline = self.ax.axvline(self.x, color='grey') #type:ignore
                 self.clicky = self.x
         self.redraw()
     
@@ -468,19 +570,19 @@ class TraceCanvas(SubplotCanvas):
 
     def update_cursor(self):
         if self.ax is self.ax_1:
-            while len(self.ax.lines) > 1: 
-                self.ax.lines[-1].remove()
-            if self.orientation.get() == 'x':
-                self.lasthline = self.ax.axhline(self.y, color='gray',ls=':')
+            while len(self.ax.lines) > 1:  #type:ignore
+                self.ax.lines[-1].remove() #type:ignore
+            if self.orientation.get() == 'x': #type:ignore
+                self.lasthline = self.ax.axhline(self.y, color='gray',ls=':') #type:ignore
             else:
-                self.lasthline = self.ax.axvline(self.x, color='gray',ls=':')
+                self.lasthline = self.ax.axvline(self.x, color='gray',ls=':') #type:ignore
         elif self.ax is self.ax_2:
-            while len(self.ax.lines) > 1: 
-                self.ax.lines[-1].remove()
-            if self.orientation.get() == 'x':
-                self.lastvline = self.ax.axhline(self.y, color='gray',ls=':')
+            while len(self.ax.lines) > 1:  #type:ignore
+                self.ax.lines[-1].remove() #type:ignore
+            if self.orientation.get() == 'x': #type:ignore
+                self.lastvline = self.ax.axhline(self.y, color='gray',ls=':') #type:ignore
             else:
-                self.lastvline = self.ax.axvline(self.x, color='gray',ls=':')
+                self.lastvline = self.ax.axvline(self.x, color='gray',ls=':') #type:ignore
         self.redraw()
 
     def show_1(self, loc):

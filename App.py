@@ -31,7 +31,7 @@ class App(ctk.CTk):
         try:
             self.recall = RecallFile()
         except Exception as e:
-            tk.messagebox.showerror('Save file error',str(e))
+            tk.messagebox.showerror('Save file error',str(e)) #type: ignore
             exit(-1)
 
         # call matplotlib inits
@@ -100,59 +100,30 @@ class App(ctk.CTk):
                 self.tabs._corner_radius, self.tabs._border_width)))
             
     def save_state(self,file_name:str=''):
+        # settings saving should be handled by objects themselves, not root
         new_params = self.recall.parameters.copy()
-        try:
-            if len(self.loadtab.inp_file.get()) > 0:
-                new_params['file'] = self.loadtab.inp_file.get()
-            if len(self.loadtab.calibration_file.get()) > 0:
-                new_params['calib_file'] = self.loadtab.calibration_file.get()
-            new_params['spaceWindow'] = self.loadtab.process.settings.spaceWindow.get()
-            new_params['timeWindow'] = self.loadtab.process.settings.timeWindow.get()
-            new_params['coincWindow'] = self.loadtab.process.settings.coincWindow.get()
-            new_params['clusterRange'] = self.loadtab.process.settings.clusterRange.get()
-            new_params['numScans'] = self.loadtab.process.settings.numScans.get()
-            new_params['beamI'] = self.loadtab.beamI[0].toString()
-            new_params['beamS'] = self.loadtab.beamS[0].toString()
-            new_params['fmin'] = self.filtertab.timetab.fmin.get()
-            new_params['fmax'] = self.filtertab.timetab.fmax.get()
-        except:
-            pass
+        
+        self.loadtab.save(new_params)
+        self.loadtab.process.settings.save(new_params)
+        self.filtertab.timetab.save(new_params)
+
         self.recall.write_file(new_params, file_name)
 
     def recallAll(self):
-        self.loadtab.inp_file.set(self.recall.parameters['file'])
-        self.loadtab.calibration_file.set(self.recall.parameters['calib_file'])
-        self.loadtab.process.settings.spaceWindow.set(self.recall.parameters['spaceWindow']) #type:ignore
-        self.loadtab.process.settings.timeWindow.set(self.recall.parameters['timeWindow']) #type:ignore
-        self.loadtab.process.settings.coincWindow.set(self.recall.parameters['coincWindow']) #type:ignore
-        self.loadtab.process.settings.clusterRange.set(self.recall.parameters['clusterRange']) #type:ignore
-        self.loadtab.process.settings.numScans.set(self.recall.parameters['numScans']) #type:ignore
-        self.loadtab.beamI.append(t3.Beam.fromString(self.recall.parameters['beamI']))
-        self.loadtab.beamS.append(t3.Beam.fromString(self.recall.parameters['beamS']))
-        self.filtertab.timetab.fmin.set(self.recall.parameters['fmin'])
-        self.filtertab.timetab.fmax.set(self.recall.parameters['fmax'])
+        # settings recall should be handled by the objects themselves, not root
+        self.loadtab.recall(self.recall)
+        self.loadtab.process.settings.recall(self.recall)
+        self.filtertab.timetab.recall(self.recall)
+
         # BUG: So it looks like I am somehow not setting the object reference,
         # but instead the object itself for beamI and beamS. For the Settings
         # this is not an issue, yet for the files it is... I am unsure of the
         # cause. Mostly though it only affects the entry boxes and prevents them
         # from showing the internal data, yet the data is still there. Maybe I
-        # just need to somehow get the widget to refresh? That's pretty much
-        # what I have to do with my custom stuff below
-
-        try: # Sees how far it can get with refreshing stuff
-            if len(self.loadtab.inp_file.get()) > 0:
-                self.loadtab.loader.load_preview(True)
-                self.loadtab.beamSelector.redraw_beams()
-        except:
-            pass
+        # just need to somehow get the widget to refresh?
 
     def recallSettings(self):
-        self.loadtab.calibration_file.set(self.recall.parameters['calib_file'])
-        self.loadtab.process.settings.spaceWindow.set(self.recall.parameters['spaceWindow']) #type:ignore
-        self.loadtab.process.settings.timeWindow.set(self.recall.parameters['timeWindow']) #type:ignore
-        self.loadtab.process.settings.coincWindow.set(self.recall.parameters['coincWindow']) #type:ignore
-        self.loadtab.process.settings.clusterRange.set(self.recall.parameters['clusterRange']) #type:ignore
-        self.loadtab.process.settings.numScans.set(self.recall.parameters['numScans']) #type:ignore
+        self.loadtab.process.settings.recall(self.recall)
 
     def quit_cleanup(self):
         self.save_state()
