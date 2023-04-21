@@ -6,11 +6,13 @@ from CustomTKWidgets import *
 from Helpers import *
 from LoadTab import *
 from FilterTab import *
+from AnalysisTab import *
 from ImagingTab import *
 
 class App(ctk.CTk):
     # TODO: space filtering
     # TODO: object reference passing cleanup
+    # TODO: fix the redraw bug - this is messing up a lot of stuff
     '''
     Main app window for holding all the other components.
     '''
@@ -18,7 +20,7 @@ class App(ctk.CTk):
         # set some parameters and do super init
         super().__init__()
         self.title("PixGUI")
-        self.minsize(1500,900)
+        self.geometry("1500x1000")
 
         # define the global data for the whole app
         self.raw_data = ReferentialNpArray()
@@ -39,6 +41,7 @@ class App(ctk.CTk):
         self.tabs = ctk.CTkTabview(self)
         self.tabs.add("Load")
         self.tabs.add("Filter")
+        self.tabs.add("Analysis")
         self.tabs.add("Imaging")
         self.left_align_tabs() # must be done after all tabs are defined
         self.tabs.set("Load")
@@ -57,6 +60,11 @@ class App(ctk.CTk):
                     filtered_data_updates=self.filtered_data_updates)
         self.filtertab.pack(padx=0,pady=0,anchor='center',expand=True,\
             fill='both')
+        self.analysistab = AnalysisTab(master=self.tabs.tab("Analysis"), \
+                filtered_data = self.filtered_data, \
+                    filtered_data_updates=self.filtered_data_updates)
+        self.analysistab.pack(padx=0,pady=0,anchor='center',expand=True,\
+                              fill='both')
         self.imagetab = ImagingTab(master=self.tabs.tab("Imaging"),\
             filtered_data=self.filtered_data)
         self.imagetab.pack(padx=0,pady=0,anchor='center',expand=True,\
@@ -145,12 +153,6 @@ class App(ctk.CTk):
         self.loadtab.process.settings.coincWindow.set(self.recall.parameters['coincWindow']) #type:ignore
         self.loadtab.process.settings.clusterRange.set(self.recall.parameters['clusterRange']) #type:ignore
         self.loadtab.process.settings.numScans.set(self.recall.parameters['numScans']) #type:ignore
-        # BUG: So it looks like I am somehow not setting the object reference,
-        # but instead the object itself. For the Settings this is not an issue,
-        # yet for the files it is... I am unsure of the cause. Mostly though it
-        # only affects the entry boxes and prevents them from showing the 
-        # internal data, yet the data is still there. Maybe I just need to 
-        # somehow get the widget to refresh?
 
     def quit_cleanup(self):
         self.save_state()

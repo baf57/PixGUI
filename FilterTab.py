@@ -3,12 +3,12 @@ import customtkinter as ctk
 from Helpers import *
 from CustomTKWidgets import *
 import tpx3_toolkit as t3
-import tpx3_toolkit.viewer as t3view # type: ignore
+import tpx3_toolkit.viewer as t3view
 
 class FilterTab(ctk.CTkFrame):
-    # TODO: previous filter memory
+    # TODO: Space filter
     '''
-    The tab where all of the loading stuff occurs
+    The tab where all of the data filtering stuff occurs
     '''
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, \
@@ -67,7 +67,6 @@ class TimeTab(ctk.CTkFrame):
                         filtered_data_updates:CanvasList, **kwargs):
         # TODO: add time filtering
         super().__init__(*args, **kwargs)
-        self.counter = 0 # FOR DEBUGGING ONLY
 
         # init data
         self.raw_data = raw_data
@@ -79,11 +78,11 @@ class TimeTab(ctk.CTkFrame):
         self.fmin = tk.IntVar(self,-200)
         self.fmax = tk.IntVar(self,200)
 
-        # define widgets            #self.grid_rowconfigure(2,weight=1)
+        # define widgets
         self.preview = SubplotCanvas(master=self, mode='save only', cwidth=375,\
                                    cheight=750,
                                    label_text='Filtered Data Preview',
-                                   axis_1_label='Signal', axis_2_label='Idler')
+                                   axis_1_label='Idler', axis_2_label='Signal')
         self.histogram = HistogramCanvas(master=self, mode='cursor', \
                                          cwidth=563, cheight=750, \
                                             figsize=(4,6), \
@@ -112,6 +111,8 @@ class TimeTab(ctk.CTkFrame):
         self.timeInfo.grid(row=0,column=2,padx=(3,5),pady=5,sticky='ew')
 
     def update_preview(self, data):
+        self.preview.ax_1.clear()
+        self.preview.ax_2.clear()
         self.preview.ax_1.set_xlabel("$X$ (pixels)")
         self.preview.ax_1.set_ylabel("$Y$ (pixels)")
         self.preview.ax_2.set_xlabel("$X$ (pixels)")
@@ -121,6 +122,7 @@ class TimeTab(ctk.CTkFrame):
         self.preview.redraw()
     
     def update_histogram(self, data):
+        self.histogram.ax.clear()
         t3view.plot_histogram(data.get(), min_bin=self.min_bin.get(),\
                               max_bin=self.max_bin.get(),\
                                   fig = self.histogram.figure)
@@ -129,6 +131,8 @@ class TimeTab(ctk.CTkFrame):
     def get_apply_filter(self):
         dt = self.raw_data.get()[1,2,:] - self.raw_data.get()[0,2,:]
         (tmin, tmax) = self.histogram.get_clicks()
+        self.histogram.clickx = None
+        self.histogram.prevclickx = None
         if tmin == 0 and tmax == 0:
             tmin = self.fmin.get()
             tmax = self.fmax.get()
@@ -231,14 +235,14 @@ class SpaceTab(ctk.CTkFrame):
         self.filtered_data = filtered_data
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
-        self.x_slope = tk.DoubleVar(self, 45)
-        self.y_slope = tk.DoubleVar(self, 45)
+        self.x_slope = tk.DoubleVar(self, -45)
+        self.y_slope = tk.DoubleVar(self, -45)
 
         # define widgets
         self.preview = SubplotCanvas(master=self, mode='save only', cwidth=375,\
                                    cheight=750,
                                    label_text='Filtered Data Preview', \
-                                   axis_1_label='Signal', axis_2_label='Idler')
+                                   axis_1_label='Idler', axis_2_label='Signal')
         self.correlations = AngleCanvas(master=self,mode='cursor',cwidth=375,\
                                           cheight=750, angle_1=self.x_slope, \
                                             angle_2=self.y_slope, \
@@ -266,6 +270,8 @@ class SpaceTab(ctk.CTkFrame):
         self.y_control.grid(row=1,column=2,padx=(3,5),pady=(0,5),sticky='ew')
 
     def update_preview(self, data):
+        self.preview.ax_1.clear()
+        self.preview.ax_2.clear()
         self.preview.ax_1.set_xlabel("$X$ (pixels)")
         self.preview.ax_1.set_ylabel("$Y$ (pixels)")
         self.preview.ax_2.set_xlabel("$X$ (pixels)")
@@ -275,6 +281,8 @@ class SpaceTab(ctk.CTkFrame):
         self.preview.redraw()
 
     def update_correlations(self, data):
+        self.correlations.ax_1.clear()
+        self.correlations.ax_2.clear()
         self.correlations.ax_1.set_xlabel("$X_i$ (pixels)")
         self.correlations.ax_1.set_ylabel("$X_s$ (pixels)")
         self.correlations.ax_2.set_xlabel("$Y_i$ (pixels)")

@@ -267,7 +267,8 @@ class SubplotCanvas(CanvasFrame):
                  **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.ax.remove() # type:ignore
+        self.figure.delaxes(self.ax)
+        self.ax = None
         self.ax_1 = self.figure.add_subplot(211)
         self.ax_2 = self.figure.add_subplot(212)
 
@@ -406,7 +407,6 @@ class AngleCanvas(SubplotCanvas):
 
     def get_clicks(self) -> tuple[int,int,int]:
         # Return clicks as x1,y1,slope1,x2,y2,slope2
-        # TODO: This is just wrong and I gotta fix it
         if not None in \
             [self.prevclickx,self.prevclicky,self.clickx,self.clicky]:
             slope1 = self.angle_1.get()
@@ -419,7 +419,102 @@ class AngleCanvas(SubplotCanvas):
             slope1,x1,y1,slope2,x2,y2 = 0, 0, 0, 0, 0, 0
 
         return (slope1,x1,y1,slope2,x2,y2) # type: ignore
+    
+class TraceCanvas(SubplotCanvas):
+    def __init__(self, *args, \
+                 orientation_1:tk.StringVar, orientation_2:tk.StringVar, \
+                 **kwargs):
+        super().__init__(*args, **kwargs)
 
+        self.orientation = None
+
+        self.orientation_1 = orientation_1
+        self.orientation_2 = orientation_2
+
+    def clicked(self,event):
+        if self.ax is self.ax_1:
+            while len(self.ax.lines) > 0: 
+                self.ax.lines[-1].remove()
+            if self.orientation.get() == 'x':
+                self.clickhline = self.ax.axhline(self.y, color='grey')
+                self.clickx = self.y
+            else:
+                self.clickhline = self.ax.axvline(self.x, color='grey')
+                self.clickx = self.x
+        elif self.ax is self.ax_2:
+            while len(self.ax.lines) > 0: 
+                self.ax.lines[-1].remove()
+            if self.orientation.get() == 'x':
+                self.clickvline = self.ax.axhline(self.y, color='grey')
+                self.clicky = self.y
+            else:
+                self.clickvline = self.ax.axvline(self.x, color='grey')
+                self.clicky = self.x
+        self.redraw()
+    
+    def remove_mouse(self,event):
+        self.configure(cursor="none")
+        self.ax = event.inaxes
+        if self.ax is self.ax_1:
+            self.orientation = self.orientation_1
+        else:
+            self.orientation = self.orientation_2
+    
+    def return_mouse(self,event):
+        self.configure(cursor="")
+        self.ax = None
+        self.loc = None
+        self.orientation = None
+
+    def update_cursor(self):
+        if self.ax is self.ax_1:
+            while len(self.ax.lines) > 1: 
+                self.ax.lines[-1].remove()
+            if self.orientation.get() == 'x':
+                self.lasthline = self.ax.axhline(self.y, color='gray',ls=':')
+            else:
+                self.lasthline = self.ax.axvline(self.x, color='gray',ls=':')
+        elif self.ax is self.ax_2:
+            while len(self.ax.lines) > 1: 
+                self.ax.lines[-1].remove()
+            if self.orientation.get() == 'x':
+                self.lastvline = self.ax.axhline(self.y, color='gray',ls=':')
+            else:
+                self.lastvline = self.ax.axvline(self.x, color='gray',ls=':')
+        self.redraw()
+
+    def show_1(self, loc):
+        while len(self.ax_1.lines) > 0: 
+            self.ax_1.lines[-1].remove()
+        if self.orientation_1.get() == 'x':
+            self.clickhline = self.ax_1.axhline(loc, color='red')
+            self.clickx = loc
+        else:
+            self.clickhline = self.ax_1.axvline(loc, color='red')
+            self.clickx = loc
+        self.redraw()
+
+    def show_2(self, loc):
+        while len(self.ax_2.lines) > 0: 
+            self.ax_2.lines[-1].remove()
+        if self.orientation_2.get() == 'x':
+            self.clickvline = self.ax_2.axhline(loc, color='red')
+            self.clicky = loc
+        else:
+            self.clickvline = self.ax_2.axvline(loc, color='red')
+            self.clicky = loc
+        self.redraw()
+
+    def get_clicks(self) -> tuple[int, int]:
+        # returns loc1, orient1, loc2, orient2
+        if not None in [self.clickx,self.clicky]:
+            loc1 = self.clickx
+            loc2 = self.clicky
+        else:
+            (loc1, loc2) = (-1,-1)
+        
+        return (loc1, loc2)
+        
 class HistogramCanvas(CanvasFrame):
     def __init__(self, *args, min_bin:tk.IntVar, max_bin:tk.IntVar, \
                  title:str='', **kwargs):
@@ -506,12 +601,12 @@ class LabeledEntry(ctk.CTkFrame):
 
         # layout widgets
         if label_side == 'after':
-            self.grid_columnconfigure(0, weight=1) # extry expands
+            self.grid_columnconfigure(0, weight=1) # entry expands
 
             self.entry.grid(row=0,column=0,padx=(0,3))
             self.label.grid(row=0,column=1)
         elif label_side == 'before':
-            self.grid_columnconfigure(1, weight=1) # extry expands
+            self.grid_columnconfigure(1, weight=1) # entry expands
 
             self.entry.grid(row=0,column=1,padx=(3,0))
             self.label.grid(row=0,column=0)
