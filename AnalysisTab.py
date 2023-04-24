@@ -208,7 +208,7 @@ class TracesTab(ctk.CTkFrame):
         fwhm_list = []
         if orientation.get() == 'x':
             halfmaxs = np.max(view,axis=0,keepdims=True) / 2
-            halfmaxs[halfmaxs <= 2] = np.inf # ignore max(counts) <= 4
+            halfmaxs[halfmaxs <= 5] = np.inf # bg tends to be around 5
             test = view >= halfmaxs
 
             for (col,maxi,viewi) in zip(test.T,halfmaxs.T,view.T):
@@ -217,7 +217,7 @@ class TracesTab(ctk.CTkFrame):
                     fwhm_list.append((indc[-1]+1) - indc[0])
         else:
             halfmaxs = np.max(view,axis=1,keepdims=True) / 2
-            halfmaxs[halfmaxs <= 2] = np.inf # ignore max(counts) <= 4
+            halfmaxs[halfmaxs <= 5] = np.inf # bg tends to be around 5
             test = view >= halfmaxs
 
             for row in test:
@@ -227,7 +227,7 @@ class TracesTab(ctk.CTkFrame):
 
         # removing outliers
         fwhm_list = np.array(fwhm_list)
-        fwhm_list = fwhm_list[abs(fwhm_list - np.mean(fwhm_list)) < 2 * np.std(fwhm_list)]
+        fwhm_list = fwhm_list[np.abs(fwhm_list - np.mean(fwhm_list)) < 2 * np.std(fwhm_list)]
 
         return (np.min(fwhm_list), np.max(fwhm_list), np.mean(fwhm_list)) #type:ignore
 

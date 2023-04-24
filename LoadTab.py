@@ -457,4 +457,4 @@ class ProcessFrame(LabeledFrame):
             self.load_bar.configure(mode='determinate')
             self.load_bar.set(1)
             self.load_state.set(\
-                f'Processing complete! Number of coincidences is {self.raw_data.get().shape[2]}.')
+                f'Complete! Number of coincidences is {self.raw_data.get().shape[2]}.')
