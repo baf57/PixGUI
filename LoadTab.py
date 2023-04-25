@@ -41,16 +41,17 @@ class LoadTab(ctk.CTkFrame):
         # init widgets
         self.beamCanvas = CanvasFrame(master=self, label_text='Beam Selector',\
                                       mode='save only', cwidth=800, cheight=800)
-        self.loader = LoadingFrame(master=self, inp_file=self.inp_file,\
-                                   beamCanvas = self.beamCanvas, \
-                                   load_state=self.load_state, \
-                                   errors=self.errors, label_text="Load", \
-                                   label_sticky='left')
         self.beamSelector = BeamSelect(master=self, label_text='Beams',\
                                        canvas=self.beamCanvas, \
                                        beamI=self.beamI, \
                                        beamS=self.beamS, \
                                        load_state=self.load_state)
+        self.loader = LoadingFrame(master=self, inp_file=self.inp_file,\
+                                   beamCanvas = self.beamCanvas, \
+                                   load_state=self.load_state, \
+                                   beamSelector = self.beamSelector, \
+                                   errors=self.errors, label_text="Load", \
+                                   label_sticky='left')
         self.process = ProcessFrame(master=self, inp_file=self.inp_file,\
                                     beamI=self.beamI, \
                                     beamS=self.beamS, raw_data=self.raw_data, \
@@ -164,54 +165,6 @@ class SettingsFrame(ctk.CTkFrame):
         new_params['coincWindow'] = self.coincWindow.get()
         new_params['clusterRange'] = self.clusterRange.get()
         new_params['numScans'] = self.numScans.get()
-
-class LoadingFrame(LabeledFrame):
-    def __init__(self, *args, inp_file:tk.StringVar, beamCanvas:CanvasFrame,\
-        load_state:tk.StringVar, errors:ErrorBox, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # init data
-        self.inp_file = inp_file
-        self.errors = errors
-        self.beamCanvas = beamCanvas
-        self.load_state = load_state
-
-        # init widgets
-        f = self.frame
-        self.load_dialog = LoadEntry(master=f,\
-            command=self.load_preview, defaultextension='.tpx3',\
-                filetypes=[("TimePix3 raw file",'*.tpx3')],\
-                    load_var=self.inp_file)
-        self.load_dialog.populate()
-        self.reload_button = ctk.CTkButton(master=f, \
-                                           text="Reload entire previous state",\
-                                           command=self.master.master.master.master.recallAll) #type:ignore
-        # this is a reference to a function of top level app, but I mean... if I
-        # assume it's a duck, I should also assume it can quack
-        
-
-        f.grid_columnconfigure(0,weight=1)
-
-        # layout widgits
-        self.load_dialog.grid(row=0,padx=5,pady=(5,0),sticky='ew')
-        self.reload_button.grid(row=1,padx=5,pady=(3,5),sticky='ew')
-
-    def load_preview(self,reloaded=False):
-        try:
-            if self.inp_file.get() != '':
-                (tdc,pix) = t3.parse_raw_file(self.inp_file.get())
-                self.beamCanvas.ax.clear()
-                t3view.plot_hits(pix,fig=self.beamCanvas.figure)
-                self.beamCanvas.ax.set_xlabel("$X$ (pixels)")
-                self.beamCanvas.ax.set_ylabel("$Y$ (pixels)")
-                self.beamCanvas.redraw()
-                self.beamCanvas.init_home()
-                if not(reloaded):
-                    self.load_state.set('Select beams...') 
-            else:
-                self.errors.append(f'Please select an input file when loading')
-        except Exception as e:
-            self.errors.append(f'Exception thrown during load:', True)
 
 class BeamSelect(LabeledFrame):
     # TODO: previous beam locations memory
@@ -349,11 +302,23 @@ class BeamSelect(LabeledFrame):
                     self.beamSString.set(f'{{{oldstring}, {newstring}}}')
 
     def redraw_beams(self):
-        beamIDrawing = t3view.draw_beam_box(self.canvas.ax,self.beamI,['g'])
-        beamSDrawing = t3view.draw_beam_box(self.canvas.ax,self.beamS,['r'])
-        self.boxes.append(beamIDrawing)
-        self.boxes.append(beamSDrawing)
-        self.canvas.redraw()
+        if len(self.beamI) > 0 and len(self.beamS) > 0:
+            self.beamIString.set(f'{{{self.beamI[0].toString()}}}')
+            self.beamSString.set(f'{{{self.beamS[0].toString()}}}')
+            for i in range(len(self.beamI)-1):
+                oldIString = self.beamIString.get()[1:-1]
+                oldSString = self.beamSString.get()[1:-1]
+                newIString = self.beamI[i+1].toString()
+                newSString = self.beamS[i+1].toString()
+                self.beamIString.set(f'{{{oldIString}, {newIString}}}')
+                self.beamSString.set(f'{{{oldSString}, {newSString}}}')
+
+            beamIDrawing = t3view.draw_beam_box(self.canvas.ax,self.beamI,['g'])
+            beamSDrawing = t3view.draw_beam_box(self.canvas.ax,self.beamS,['r'])
+            self.boxes.append(beamIDrawing)
+            self.boxes.append(beamSDrawing)
+            self.canvas.redraw()
+            self.load_state.set("Ready to process...")
 
     def reset_beams(self):
         self.beamI.clear()
@@ -378,6 +343,56 @@ class BeamSelect(LabeledFrame):
             command=self.enable_idler_select)
         self.signalsButton.configure(text='Select',\
             command=self.enable_signal_select)
+        
+class LoadingFrame(LabeledFrame):
+    def __init__(self, *args, inp_file:tk.StringVar, beamCanvas:CanvasFrame,\
+        load_state:tk.StringVar, beamSelector:BeamSelect, errors:ErrorBox, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # init data
+        self.inp_file = inp_file
+        self.errors = errors
+        self.beamCanvas = beamCanvas
+        self.load_state = load_state
+        self.beamSelector = beamSelector
+
+        # init widgets
+        f = self.frame
+        self.load_dialog = LoadEntry(master=f,\
+            command=self.load_preview, defaultextension='.tpx3',\
+                filetypes=[("TimePix3 raw file",'*.tpx3')],\
+                    load_var=self.inp_file)
+        self.load_dialog.populate()
+        self.reload_button = ctk.CTkButton(master=f, \
+                                           text="Reload entire previous state",\
+                                           command=self.master.master.master.master.recallAll) #type:ignore
+        # this is a reference to a function of top level app, but I mean... if I
+        # assume it's a duck, I should also assume it can quack
+        
+
+        f.grid_columnconfigure(0,weight=1)
+
+        # layout widgits
+        self.load_dialog.grid(row=0,padx=5,pady=(5,0),sticky='ew')
+        self.reload_button.grid(row=1,padx=5,pady=(3,5),sticky='ew')
+
+    def load_preview(self,reloaded=False):
+        try:
+            if self.inp_file.get() != '':
+                (tdc,pix) = t3.parse_raw_file(self.inp_file.get())
+                self.beamCanvas.ax.clear()
+                t3view.plot_hits(pix,fig=self.beamCanvas.figure)
+                self.beamCanvas.ax.set_xlabel("$X$ (pixels)")
+                self.beamCanvas.ax.set_ylabel("$Y$ (pixels)")
+                self.beamCanvas.redraw()
+                self.beamCanvas.init_home()
+                if not(reloaded):
+                    self.load_state.set('Select beams...') 
+                self.beamSelector.redraw_beams()
+            else:
+                self.errors.append(f'Please select an input file when loading')
+        except Exception as e:
+            self.errors.append(f'Exception thrown during load:', True)
 
 class ProcessFrame(LabeledFrame):
     def __init__(self, *args, inp_file:tk.StringVar, beamI:list[t3.Beam], \
@@ -457,4 +472,4 @@ class ProcessFrame(LabeledFrame):
             self.load_bar.configure(mode='determinate')
             self.load_bar.set(1)
             self.load_state.set(\
-                f'Processing complete! Number of coincidences is {self.raw_data.get().shape[2]}.')
+                f'Complete! Number of coincidences is {self.raw_data.get().shape[2]}.')

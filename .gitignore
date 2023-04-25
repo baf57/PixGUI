@@ -1,3 +1,4 @@
 .env
 recall.t3w
 __pycache__
+.vscode

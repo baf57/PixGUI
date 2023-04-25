@@ -698,7 +698,7 @@ class LabeledEntry(ctk.CTkFrame):
         self.var_ref = var_ref
 
         # init widgets
-        self.entry = ctk.CTkEntry(self, width=70, textvariable=self.var_ref)
+        self.entry = ctk.CTkEntry(self, width=70, textvariable=var_ref)
         self.label = ctk.CTkLabel(self, text=label_text)
 
         # layout widgets
