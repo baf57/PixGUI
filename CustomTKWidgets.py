@@ -130,22 +130,15 @@ class CanvasFrame(LabeledFrame):
                 textvariable=self.statusbartext, height=1)
             self.statusbar.grid(row=2, column=0, padx=2, sticky='w')
         if zoom:
-            zoomicon = ctk.CTkImage(\
-                Image.open(\
-                    os.path.dirname(os.path.realpath(__file__))+\
-                        r'/assets/zoom.png'))
             homeicon = ctk.CTkImage(\
                 Image.open(\
                     os.path.dirname(os.path.realpath(__file__))+\
                         r'/assets/home.png'))
-            self.zoombutton = ctk.CTkButton(master=self.frame, image=zoomicon, \
-                command=self.zoom_mode, text ='', border_width=0, \
-                    border_spacing=0, width=28, height=28)
             self.homebutton = ctk.CTkButton(master=self.frame, image=homeicon, \
                 command=self.go_home, text ='', border_width=0, \
                     border_spacing=0, width=28, height=28)
-            self.zoombutton.grid(row=2, column=1, padx=2, stick='nse')
             self.homebutton.grid(row=2, column=2, padx=2, stick='nse')
+            self.state = 'zoom'
         if mode == 'cursor' or mode == 'save only':
             saveicon = ctk.CTkImage(\
                 Image.open(\
@@ -172,7 +165,10 @@ class CanvasFrame(LabeledFrame):
         self.ax.set_xlim(self.xlim)
         self.ax.set_ylim(self.ylim) #type:ignore
 
-        self.state = 'normal'
+        self.zoomxs = []
+        self.zoomys = []
+        self.clicks = 0
+
         self.redraw()
 
     def init_home(self):
@@ -184,7 +180,6 @@ class CanvasFrame(LabeledFrame):
         self.ax.set_xlim(self.xlimh)
         self.ax.set_ylim(self.ylimh) #type:ignore
 
-        self.state = 'normal'
         self.update_statusbar()
         self.redraw()
     
