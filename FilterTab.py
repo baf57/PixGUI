@@ -244,26 +244,26 @@ class SpaceTab(ctk.CTkFrame):
         self.filtered_data = filtered_data
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
-        self.x_slope = tk.DoubleVar(self, -45)
-        self.y_slope = tk.DoubleVar(self, -45)
+        self.threshold = tk.DoubleVar(self, 0.2)
 
         # define widgets
         self.preview = SubplotCanvas(master=self, mode='save only', cwidth=375,\
-                                   cheight=750,
-                                   label_text='Filtered Data Preview', \
-                                   axis_1_label='Idler', axis_2_label='Signal')
-        self.correlations = AngleCanvas(master=self,mode='cursor',cwidth=375,\
-                                          cheight=750, angle_1=self.x_slope, \
-                                            angle_2=self.y_slope, \
-                                              label_text='X-Y Correlations',
-                                                axis_1_label='X Correlations', \
-                                                  axis_2_label='Y Correlations')
-        self.x_control = SlopeControl(master=self, slope=self.x_slope, \
-                                  command=self.correlations.show_preview_0, \
-                                    label_text='X-Control', direction='X')
-        self.y_control = SlopeControl(master=self, slope=self.y_slope, \
-                                  command=self.correlations.show_preview_1, \
-                                    direction='Y', label_text='Y-Control')
+                                      cheight=750, \
+                                       label_text='Filtered Data Preview', \
+                                        axis_1_label='Idler', \
+                                         axis_2_label='Signal')
+        self.correlations = SubplotCanvas(master=self,mode='save only',cwidth=375,\
+                                           cheight=750, \
+                                            label_text='X-Y Correlations', \
+                                             axis_1_label='X Correlations', \
+                                              axis_2_label='Y Correlations')
+        self.space_info = SpaceInfo(master=self, \
+                                     label_text='Space Filter Control', \
+                                      raw_data=self.raw_data, \
+                                       filtered_data=self.filtered_data, \
+                                        filtered_data_updates=self.filtered_data_updates, \
+                                         threshold=self.threshold, \
+                                          get_apply_filter=self.get_apply_filter)
 
         # modify widgets
         self.filtered_data_updates.append([self.update_preview, \
@@ -271,12 +271,11 @@ class SpaceTab(ctk.CTkFrame):
         
         # layout widgets
         self.columnconfigure(2,weight=1)
-        self.preview.grid(row=0,rowspan=2,column=0,padx=(5,3),pady=5,\
+        self.preview.grid(row=0,column=0,padx=(5,3),pady=5,\
                           sticky='ew')
-        self.correlations.grid(row=0,rowspan=2,column=1,padx=0,pady=(5,3),\
+        self.correlations.grid(row=0,column=1,padx=0,pady=(5,3),\
                                sticky='ew')
-        self.x_control.grid(row=0,column=2,padx=(3,5),pady=(5,3),sticky='ew')
-        self.y_control.grid(row=1,column=2,padx=(3,5),pady=(0,5),sticky='ew')
+        self.space_info.grid(row=0,column=2,padx=(3,5),pady=5,sticky='ew')
 
     def update_preview(self, data):
         self.preview.ax_1.clear()
@@ -301,22 +300,66 @@ class SpaceTab(ctk.CTkFrame):
         self.correlations.redraw()
         self.correlations.init_home()
 
-class SlopeControl(LabeledFrame):
-    def __init__(self, *args, slope:tk.DoubleVar, direction:str, \
-                 command: Callable, **kwargs):
+    def get_apply_filter(self):
+        # idea:
+        #   (1) create a 2D mask of the bins which need to be kept and those which don't 
+        #   (2) check each (xi,xs) pair in current filtered data
+        #       (a) If they are in a False bin then remove them from the filtered data
+
+        x_info = self.correlations.ax_1.get_images()[0].get_array()
+        y_info = self.correlations.ax_2.get_images()[0].get_array()
+        max_xs = np.max(x_info, axis=0, keepdims=True)
+        max_ys = np.max(y_info, axis=0, keepdims=True)
+
+        xi_offset = np.min(self.raw_data.get()[0,0,:])
+        xs_offset = np.min(self.raw_data.get()[1,0,:])
+        yi_offset = np.min(self.raw_data.get()[0,1,:])
+        ys_offset = np.min(self.raw_data.get()[1,1,:])
+        x_mask = x_info > max_xs * self.threshold.get()
+        y_mask = y_info > max_ys/2 * self.threshold.get()
+
+        x_filter = x_mask[(self.filtered_data.get()[1,0,:]-xs_offset).astype('int'),
+                          (self.filtered_data.get()[0,0,:]-xi_offset).astype('int')]
+        y_filter = y_mask[(self.filtered_data.get()[1,1,:]-ys_offset).astype('int'),
+                          (self.filtered_data.get()[0,1,:]-yi_offset).astype('int')]
+        
+        f = np.logical_and(x_filter, y_filter)
+        self.filtered_data.set(self.filtered_data.get()[:,:,f])
+        self.filtered_data_updates.update_all()
+
+
+class SpaceInfo(LabeledFrame):
+    def __init__(self, *args, raw_data:ReferentialNpArray, \
+                 filtered_data:ReferentialNpArray, \
+                  filtered_data_updates:CanvasList, \
+                   threshold:tk.DoubleVar, \
+                    get_apply_filter:Callable, \
+                     **kwargs):
         super().__init__(*args, **kwargs)
 
-        f = self.get_frame()
-        self.slopeLabel = ctk.CTkLabel(master=f, \
-                                       text=f'{direction}-Slope Angle: ')
-        self.slopeSlider = ctk.CTkSlider(master=f, from_=-90, to=90, \
-                                         number_of_steps=180*4, \
-                                          command=command, \
-                                             variable=slope)
-        self.slopeView = ctk.CTkEntry(master=f, width=50, \
-                                      textvariable=slope)
+        # init data
+        self.raw_data = raw_data
+        self.filtered_data = filtered_data
+        self.dx_raw = np.zeros(0)
+        self.dy_raw = np.zeros(0)
+        self.dx = np.zeros(0)
+        self.dy = np.zeros(0)
+        self.tot_counts = tk.IntVar(self, value=0)
+        self.filtered_counts = tk.IntVar(self, value=0)
+        self.get_apply_filter = get_apply_filter
         
-        f.columnconfigure(1, weight=1)
-        self.slopeLabel.grid(row=0,column=0,padx=(5,3),pady=5,sticky='ew')
-        self.slopeSlider.grid(row=0,column=1,padx=0,pady=5,sticky='ew')
-        self.slopeView.grid(row=0,column=2,padx=(3,5),pady=5,sticky='ew')
+        filtered_data_updates.append([self.update_info])
+
+        f = self.get_frame()
+        self.threshold_box = LabeledEntry(f, var_ref=threshold, \
+                                      label_text="Filter threshold", \
+                                        label_side='before')
+        self.filter_button = ctk.CTkButton(f,text='Apply filter',width=0,\
+                                           command=self.get_apply_filter)
+        
+        f.columnconfigure(0, weight=1)
+        self.threshold_box.grid(row=0,column=0,padx=(3,5),pady=5,sticky='ew')
+        self.filter_button.grid(row=0,column=1,padx=5,pady=5,sticky='ew')
+
+    def update_info(self, data):
+        pass
