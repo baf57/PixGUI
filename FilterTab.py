@@ -306,6 +306,8 @@ class SpaceTab(ctk.CTkFrame):
         #   (2) check each (xi,xs) pair in current filtered data
         #       (a) If they are in a False bin then remove them from the filtered data
 
+        # THERE IS SOMETHING SUBTLEY WRONG WITH THIS BUT IT KINDA WORKS
+        
         x_info = self.correlations.ax_1.get_images()[0].get_array()
         y_info = self.correlations.ax_2.get_images()[0].get_array()
         max_xs = np.max(x_info, axis=0, keepdims=True)
