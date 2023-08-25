@@ -7,7 +7,6 @@ from Helpers import *
 from LoadTab import *
 from FilterTab import *
 from AnalysisTab import *
-from ImagingTab import *
 
 class App(ctk.CTk):
     # TODO: space filtering
@@ -65,10 +64,6 @@ class App(ctk.CTk):
                     filtered_data_updates=self.filtered_data_updates)
         self.analysistab.pack(padx=0,pady=0,anchor='center',expand=True,\
                               fill='both')
-        self.imagetab = ImagingTab(master=self.tabs.tab("Imaging"),\
-            filtered_data=self.filtered_data)
-        self.imagetab.pack(padx=0,pady=0,anchor='center',expand=True,\
-            fill='both')
 
         # layout tabs
         self.tabs.pack(padx=10, pady=0, anchor='center', expand=True, \

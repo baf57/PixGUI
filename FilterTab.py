@@ -245,6 +245,8 @@ class SpaceTab(ctk.CTkFrame):
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
         self.threshold = tk.DoubleVar(self, 0.2)
+        self.current_bin = 1
+        self.unbined_data = self.filtered_data.get()
 
         # define widgets
         self.preview = SubplotCanvas(master=self, mode='save only', cwidth=375,\
@@ -263,7 +265,8 @@ class SpaceTab(ctk.CTkFrame):
                                        filtered_data=self.filtered_data, \
                                         filtered_data_updates=self.filtered_data_updates, \
                                          threshold=self.threshold, \
-                                          get_apply_filter=self.get_apply_filter)
+                                          get_apply_filter=self.get_apply_filter, \
+                                            update_binning=self.update_binning)
 
         # modify widgets
         self.filtered_data_updates.append([self.update_preview, \
@@ -312,21 +315,37 @@ class SpaceTab(ctk.CTkFrame):
         y_info = self.correlations.ax_2.get_images()[0].get_array()
         max_xs = np.max(x_info, axis=0, keepdims=True)
         max_ys = np.max(y_info, axis=0, keepdims=True)
+        max_xi = np.max(x_info, axis=1, keepdims=True)
+        max_yi = np.max(y_info, axis=1, keepdims=True)
 
         xi_offset = np.min(self.raw_data.get()[0,0,:])
         xs_offset = np.min(self.raw_data.get()[1,0,:])
         yi_offset = np.min(self.raw_data.get()[0,1,:])
         ys_offset = np.min(self.raw_data.get()[1,1,:])
-        x_mask = x_info > max_xs * self.threshold.get()
-        y_mask = y_info > max_ys/2 * self.threshold.get()
+        xs_mask = x_info > max_xs * self.threshold.get()
+        ys_mask = y_info > max_ys * self.threshold.get()
+        xi_mask = x_info > max_xi * self.threshold.get()
+        yi_mask = y_info > max_yi * self.threshold.get()
 
-        x_filter = x_mask[(self.filtered_data.get()[1,0,:]-xs_offset).astype('int'),
+        xs_filter = xs_mask[(self.filtered_data.get()[1,0,:]-xs_offset).astype('int'),
                           (self.filtered_data.get()[0,0,:]-xi_offset).astype('int')]
-        y_filter = y_mask[(self.filtered_data.get()[1,1,:]-ys_offset).astype('int'),
+        ys_filter = ys_mask[(self.filtered_data.get()[1,1,:]-ys_offset).astype('int'),
+                          (self.filtered_data.get()[0,1,:]-yi_offset).astype('int')]
+        xi_filter = xi_mask[(self.filtered_data.get()[1,0,:]-xs_offset).astype('int'),
+                          (self.filtered_data.get()[0,0,:]-xi_offset).astype('int')]
+        yi_filter = yi_mask[(self.filtered_data.get()[1,1,:]-ys_offset).astype('int'),
                           (self.filtered_data.get()[0,1,:]-yi_offset).astype('int')]
         
-        f = np.logical_and(x_filter, y_filter)
+        f = np.logical_and(np.logical_and(xs_filter, xi_filter), \
+                           np.logical_and(ys_filter,yi_filter))
         self.filtered_data.set(self.filtered_data.get()[:,:,f])
+        self.filtered_data_updates.update_all()
+
+    def update_binning(self):
+        bin_data = self.filtered_data.get()
+        bin_data[:,0,:] = np.ceil(bin_data[:,0,:] / self.space_info.xbinsize.get())
+        bin_data[:,1,:] = np.ceil(bin_data[:,1,:] / self.space_info.ybinsize.get())
+        self.filtered_data.set(bin_data)
         self.filtered_data_updates.update_all()
 
 
@@ -336,7 +355,8 @@ class SpaceInfo(LabeledFrame):
                   filtered_data_updates:CanvasList, \
                    threshold:tk.DoubleVar, \
                     get_apply_filter:Callable, \
-                     **kwargs):
+                     update_binning:Callable, \
+                      **kwargs):
         super().__init__(*args, **kwargs)
 
         # init data
@@ -348,7 +368,17 @@ class SpaceInfo(LabeledFrame):
         self.dy = np.zeros(0)
         self.tot_counts = tk.IntVar(self, value=0)
         self.filtered_counts = tk.IntVar(self, value=0)
-        self.get_apply_filter = get_apply_filter
+        self.xbinsize = ctk.IntVar(self, 1)
+        self.ybinsize = self.xbinsize
+        self.ybinhold = ctk.IntVar(self,1)
+        lockimage = ctk.CTkImage(Image.open(\
+            os.path.dirname(os.path.realpath(__file__))+r'/assets/lock.png'))
+        unlockimage = ctk.CTkImage(Image.open(\
+            os.path.dirname(os.path.realpath(__file__))+r'/assets/unlock.png'))
+
+        # this is an ugly reference but it's the way that requires the least 
+        # amount of work to do the filter reset so this is what you get
+        reset = self.master.master.master.master.timetab.get_apply_filter
         
         filtered_data_updates.append([self.update_info])
 
@@ -357,11 +387,37 @@ class SpaceInfo(LabeledFrame):
                                       label_text="Filter threshold", \
                                         label_side='before')
         self.filter_button = ctk.CTkButton(f,text='Apply filter',width=0,\
-                                           command=self.get_apply_filter)
+                                           command=get_apply_filter)
+        self.reset_button = ctk.CTkButton(f, text='Reset space filter',width=0,\
+                                          command=reset)
+        self.x_bin_box = SpinBox(f, var_ref=self.xbinsize)
+        self.y_bin_box = SpinBox(f, var_ref=self.xbinsize)
+        self.lock = ToggleButton(f, on_command=self.same_bins, \
+                                 off_command=self.diff_bins, on_image=lockimage,
+                                 off_image=unlockimage, default_state=True)
+        self.bin_button = ctk.CTkButton(f, text="Apply binning", width=0, \
+                                        command=update_binning)
         
-        f.columnconfigure(0, weight=1)
-        self.threshold_box.grid(row=0,column=0,padx=(3,5),pady=5,sticky='ew')
-        self.filter_button.grid(row=0,column=1,padx=5,pady=5,sticky='ew')
+        self.threshold_box.grid(row=0,column=0,columnspan=3,padx=(5,3),pady=(5,3),sticky='e')
+        self.filter_button.grid(row=0,column=3,padx=(0,5),pady=(5,3),sticky='ew')
+
+        self.x_bin_box.grid(row=1,column=0,padx=(5,3),pady=(3,5),sticky='ew')
+        self.lock.grid(row=1,column=1,padx=0,pady=(3,5))
+        self.y_bin_box.grid(row=1,column=2,padx=3,pady=(3,5),sticky='ew')
+        self.bin_button.grid(row=1,column=3,padx=(0,5),pady=(3,5),sticky='ew')
+
+        self.reset_button.grid(row=0,rowspan=2,column=4,padx=5,pady=5,sticky='ew')
+
+        self.same_bins()
 
     def update_info(self, data):
         pass
+
+    def same_bins(self):
+        self.ybinsize = self.xbinsize
+        self.y_bin_box.update_var(self.xbinsize)
+
+    def diff_bins(self):
+        self.ybinhold.set(self.xbinsize.get())
+        self.ybinsize = self.ybinhold
+        self.y_bin_box.update_var(self.ybinsize)

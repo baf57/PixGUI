@@ -385,138 +385,6 @@ class SubplotCanvas(CanvasFrame):
         self.update_statusbar()
         self.state = 'normal'
 
-class AngleCanvas(SubplotCanvas):
-    # This whole class is less than optimal, but it works so I'm leaving it
-    # TODO: Need some sort of get_clicklines() method
-    def __init__(self, *args, angle_1:tk.DoubleVar, angle_2:tk.DoubleVar,\
-                  **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.angle = None
-
-        self.angle_1 = angle_1
-        self.angle_2 = angle_2
-
-    def clicked(self,event):
-        xlims = self.ax.get_xlim() #type:ignore ax will have a handle
-        m = np.tan(np.deg2rad(self.angle.get())) #type:ignore angle will have a handle
-
-        x = np.array(xlims)
-        y = m * (x - self.x) + self.y
-
-        if self.clickvline is not None:
-            self.clickvline.remove()
-            self.clickvline = None
-        else:
-            self.clickvline = self.ax.plot(x,y,color="red",ls=":")[0] #type:ignore ax will have a handle
-        
-        if self.clickhline is not None:
-            self.clickhline.remove()
-            self.clickhline = None
-        else:
-            self.clickhline = self.ax.plot(x,y,color="red",ls=":")[0] #type:ignore ax will have a handle
-
-        self.prevclickx = self.clickx
-        self.clickx = self.x
-        self.prevclicky = self.clicky
-        self.clicky = self.y
-
-    def remove_mouse(self,event):
-        self.configure(cursor="none")
-        self.ax = event.inaxes
-        if self.ax is self.ax_1:
-            self.angle = self.angle_1
-        else:
-            self.angle = self.angle_2
-    
-    def return_mouse(self,event):
-        self.configure(cursor="")
-        self.ax = None
-        self.angle = None
-
-    def update_cursor(self):
-        xlims = self.ax.get_xlim() #type:ignore ax will have a handle
-        ylims = self.ax.get_ylim() #type:ignore ax will have a handle
-        m = np.tan(np.deg2rad(self.angle.get())) #type:ignore angle will have a handle
-
-        x = np.array(xlims)
-        y = m * (x - self.x) + self.y
-
-        if self.lastvline is not None: self.lastvline.remove()
-        self.lastvline = self.ax.plot(x,y,color="red",ls=":")[0] #type:ignore ax will have a handle
-        if self.lasthline is not None: self.lasthline.remove()
-        self.lasthline = self.ax.plot(x,y,color="red",ls=":")[0] #type:ignore ax will have a handle
-
-        self.ax.set_xlim(xlims[0], xlims[1]) #type:ignore ax will have a handle
-        self.ax.set_ylim(ylims[0], ylims[1]) #type:ignore ax will have a handle
-
-        self.redraw()
-
-    def show_preview_0(self,angle):
-        self.ax = self.ax_1
-
-        xlims = self.ax.get_xlim()
-        ylims = self.ax.get_ylim()
-        m = np.tan(np.deg2rad(angle))
-
-        x1 = np.average(xlims)
-        y1 = np.average(ylims)
-
-        x = np.array(xlims)
-        y = m * (x - x1) + y1
-
-        if self.lastvline is not None: self.lastvline.remove()
-        self.lastvline = self.ax.plot(x,y,color="red",ls=":")[0]
-        if self.lasthline is not None: self.lasthline.remove()
-        self.lasthline = self.ax.plot(x,y,color="red",ls=":")[0]
-
-        self.ax.set_xlim(xlims[0], xlims[1])
-        self.ax.set_ylim(ylims[0], ylims[1])
-
-        self.ax = None
-
-        self.redraw()
-
-    def show_preview_1(self,angle):
-        self.ax = self.ax_2
-
-        xlims = self.ax.get_xlim()
-        ylims = self.ax.get_ylim()
-        m = np.tan(np.deg2rad(angle))
-
-        x1 = np.average(xlims)
-        y1 = np.average(ylims)
-
-        x = np.array(xlims)
-        y = m * (x - x1) + y1
-
-        if self.lastvline is not None: self.lastvline.remove()
-        self.lastvline = self.ax.plot(x,y,color="red",ls=":")[0]
-        if self.lasthline is not None: self.lasthline.remove()
-        self.lasthline = self.ax.plot(x,y,color="reTODOd",ls=":")[0]
-
-        self.ax.set_xlim(xlims[0], xlims[1])
-        self.ax.set_ylim(ylims[0], ylims[1])
-
-        self.ax = None
-
-        self.redraw()
-
-    def get_clicks(self) -> tuple[int,int,int]:
-        # Return clicks as x1,y1,slope1,x2,y2,slope2
-        if not None in \
-            [self.prevclickx,self.prevclicky,self.clickx,self.clicky]:
-            slope1 = self.angle_1.get()
-            x1 = min(self.clickx,self.prevclickx) # type: ignore
-            y1 = max(self.clickx,self.prevclickx) # type: ignore
-            slope2 = self.angle_2.get()
-            x2 = min(self.clicky,self.prevclicky) # type: ignore
-            y2 = max(self.clicky,self.prevclicky) # type: ignore
-        else:
-            slope1,x1,y1,slope2,x2,y2 = 0, 0, 0, 0, 0, 0
-
-        return (slope1,x1,y1,slope2,x2,y2) # type: ignore
-    
 class TraceCanvas(SubplotCanvas):
     def __init__(self, *args, \
                  orientation_1:tk.StringVar, orientation_2:tk.StringVar, \
@@ -849,3 +717,74 @@ class DropDownFrame(ctk.CTkFrame):
             self.collapsable_frame.lift()
             self.collapsable_frame.grid(row=1,column=0,padx=5,pady=(0,3),\
                                         sticky='ew')
+
+class ToggleButton(ctk.CTkButton):
+    def __init__(self, *args, on_command:callable, off_command:callable, \
+                 on_image:ctk.CTkImage, off_image:ctk.CTkImage, \
+                    default_state:bool=False, **kwargs):
+        super().__init__(*args, width=0, text='', command=self.toggle, **kwargs)
+        self._state = default_state
+        self._on_command = on_command
+        self._off_command = off_command
+        self._on_image = on_image
+        self._off_image = off_image
+        self._update_view()
+
+    def toggle(self):
+        self._state = not self._state
+        self._update_view()
+        if self._state:
+            self._on_command()
+        else:
+            self._off_command()
+
+    def _update_view(self):
+        if self._state:
+            self.configure(True, image=self._on_image)
+        else:
+            self.configure(True, image=self._off_image)
+
+class SpinBox(ctk.CTkFrame):
+    '''
+    An entry box which also has incrementing buttons.
+
+    # Parameters
+    var_ref:tk.Variable
+        A reference to the variable which will be modified and displayed
+    label_text:str
+        The label text
+
+    # Notes
+    This and the below function should be refactored to be sibling classes
+    '''
+    def __init__(self, *args, var_ref:tk.Variable, min_val=1, max_val=9, 
+                 **kwargs):
+        super().__init__(*args, width=0, bg_color='transparent',\
+            fg_color='transparent', **kwargs)
+        
+        self.var_ref = var_ref
+        self.min_val = min_val
+        self.max_val = max_val
+
+        self.entry = ctk.CTkEntry(self, width=30, textvariable=self.var_ref)
+        self.plus = ctk.CTkButton(self, width=0, text='+', command=self.add)
+        self.minus = ctk.CTkButton(self, width=0, text='-', command=self.sub)
+        
+        self.plus.grid(row=0,column=0,sticky='nsew')
+        self.entry.grid(row=0,column=1,sticky='nsew')
+        self.minus.grid(row=0,column=2,sticky='nsew')
+
+    def add(self):
+        if self.var_ref.get() + 1 <= self.max_val:
+            self.var_ref.set(self.var_ref.get() + 1)
+
+    def sub(self):
+        if self.var_ref.get() - 1 >= self.min_val:
+            self.var_ref.set(self.var_ref.get() - 1)
+    
+    def update_var(self, new_var):
+        self.var_ref = new_var
+        self.entry.configure(True, textvariable=new_var)
+
+    def get(self):
+        return self.var_ref.get()
