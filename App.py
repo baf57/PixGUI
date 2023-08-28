@@ -9,9 +9,8 @@ from FilterTab import *
 from AnalysisTab import *
 
 class App(ctk.CTk):
-    # TODO: space filtering
     # TODO: object reference passing cleanup
-    # TODO: fix the redraw bug - this is messing up a lot of stuff
+    # TODO: fix the redraw bug - this is annoying but not an functional issue
     '''
     Main app window for holding all the other components.
     '''
@@ -19,7 +18,7 @@ class App(ctk.CTk):
         # set some parameters and do super init
         super().__init__()
         self.title("PixGUI")
-        self.geometry("1500x1000")
+        self.geometry("1520x930")
 
         # define the global data for the whole app
         self.raw_data = ReferentialNpArray()
@@ -41,7 +40,6 @@ class App(ctk.CTk):
         self.tabs.add("Load")
         self.tabs.add("Filter")
         self.tabs.add("Analysis")
-        self.tabs.add("Imaging")
         self.left_align_tabs() # must be done after all tabs are defined
         self.tabs.set("Load")
 
@@ -69,6 +67,7 @@ class App(ctk.CTk):
         self.tabs.pack(padx=10, pady=0, anchor='center', expand=True, \
             fill='both')
         
+        self.recallDir()
         self.recallSettings()
 
     def set_mpl_params(self):
@@ -110,15 +109,11 @@ class App(ctk.CTk):
         self.loadtab.process.settings.recall(self.recall)
         self.filtertab.timetab.recall(self.recall)
 
-        # BUG: So it looks like I am somehow not setting the object reference,
-        # but instead the object itself for beamI and beamS. For the Settings
-        # this is not an issue, yet for the files it is... I am unsure of the
-        # cause. Mostly though it only affects the entry boxes and prevents them
-        # from showing the internal data, yet the data is still there. Maybe I
-        # just need to somehow get the widget to refresh?
-
     def recallSettings(self):
         self.loadtab.process.settings.recall(self.recall)
+
+    def recallDir(self):
+        self.loadtab.recallDir(self.recall)
 
     def quit_cleanup(self):
         self.save_state()

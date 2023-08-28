@@ -607,7 +607,8 @@ class LoadEntry(ctk.CTkFrame):
     '''
     def __init__(self, *args, load_var:tk.StringVar, \
         defaultextension:str, filetypes:list[tuple[str,str]],\
-            command:Callable=lambda: None, **kwargs):
+            command:Callable=lambda: None, root:tk.StringVar=None,\
+                 **kwargs):
         super().__init__(*args, width=0, bg_color='transparent',\
             fg_color='transparent', **kwargs)
 
@@ -616,6 +617,7 @@ class LoadEntry(ctk.CTkFrame):
         self.defaultextension = defaultextension
         self.filetypes = filetypes
         self.command = command
+        self.root = root
 
         # init widgets
         self.entry = ctk.CTkEntry(self)
@@ -646,7 +648,10 @@ class LoadEntry(ctk.CTkFrame):
         self.clear_and_insert(0,os.path.basename(self.load_var.get()))
 
     def open_dialog(self):
-        initdir = os.path.dirname(os.path.realpath(self.get()))
+        if self.root is None:
+            initdir = os.path.dirname(os.path.realpath(__file__))
+        else:
+            initdir = self.root.get()
         initfile = os.path.basename(os.path.realpath(self.get()))
         fname = tkinter.filedialog.askopenfilename(initialdir=initdir, \
             initialfile=initfile, defaultextension=self.defaultextension, \

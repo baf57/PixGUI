@@ -25,6 +25,7 @@ class LoadTab(ctk.CTkFrame):
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
         self.errors = errors
+        self.dir = tk.StringVar(self,os.path.dirname(os.path.realpath(__file__)))
 
         # global load data
         self.inp_file = tk.StringVar(self)
@@ -46,8 +47,17 @@ class LoadTab(ctk.CTkFrame):
                                        beamI=self.beamI, \
                                        beamS=self.beamS, \
                                        load_state=self.load_state)
+        self.io = ImportExportFrame(master=self, \
+                                    raw_data=self.raw_data,\
+                                    filtered_data=self.filtered_data,\
+                                    raw_data_updates=self.raw_data_updates,\
+                                    filtered_data_updates=self.filtered_data_updates,\
+                                    load_state=self.load_state, \
+                                    errors=self.errors, label_text="Import/Export",\
+                                    label_sticky="left")
         self.loader = LoadingFrame(master=self, inp_file=self.inp_file,\
                                    beamCanvas = self.beamCanvas, \
+                                   io = self.io, \
                                    load_state=self.load_state, \
                                    beamSelector = self.beamSelector, \
                                    errors=self.errors, label_text="Load", \
@@ -66,17 +76,19 @@ class LoadTab(ctk.CTkFrame):
         # layout widgets
         self.grid_columnconfigure(1,weight=1)
 
-        self.beamCanvas.grid(row=0,column=0,rowspan=4,padx=5,pady=5,\
+        self.beamCanvas.grid(row=0,column=0,rowspan=5,padx=5,pady=5,\
                              sticky='nsew')
         self.loader.grid(row=0,column=1,padx=5,pady=5,sticky='ew')
         self.beamSelector.grid(row=1,column=1,padx=5,pady=5,sticky='ew')
         self.process.grid(row=2,column=1,padx=5,pady=5,sticky='ew')
-        self.errors.grid(in_=self,row=3,column=1,padx=5,pady=5,sticky='ew')
+        self.io.grid(row=3,column=1,padx=5,pady=5,sticky='ew')
+        self.errors.grid(in_=self,row=4,column=1,padx=5,pady=5,sticky='ew')
         self.errors.lift() # needed to not draw behind frame since it was
                            # created before the frame was
 
     def recall(self, recall:RecallFile):
         self.inp_file.set(recall.parameters['file'])
+        self.loader.load_dialog.populate()
         self.loader.load_preview(True)
 
         self.beamI.append(t3.Beam.fromString(recall.parameters['beamI']))
@@ -86,10 +98,14 @@ class LoadTab(ctk.CTkFrame):
     def save(self, new_params:dict):
         if len(self.inp_file.get()) > 0:
             new_params['file'] = self.inp_file.get()
+            new_params['dir'] = self.dir.get()
         if len(self.beamI) > 0:
             new_params['beamI'] = self.beamI[0].toString()
         if len(self.beamS) > 0:
             new_params['beamS'] = self.beamS[0].toString()
+    
+    def recallDir(self, recall:RecallFile):
+        self.dir.set(recall.parameters['dir'])
 
         
 class SettingsFrame(ctk.CTkFrame):
@@ -100,7 +116,7 @@ class SettingsFrame(ctk.CTkFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # init data  
+        # init data 
         self.calibration_file = tk.StringVar()
         self.spaceWindow = tk.IntVar(self,20)
         self.timeWindow = tk.IntVar(self,250)
@@ -200,13 +216,13 @@ class BeamSelect(LabeledFrame):
         # layout widgets
         f.columnconfigure(1, weight=1)
 
-        self.idlersLabel.grid(row=0,column=0,padx=(5,0),pady=5,sticky='e')
-        self.idlers.grid(row=0,column=1,padx=5,pady=5,sticky='ew')
-        self.idlersButton.grid(row=0,column=2,padx=(0,5),pady=5,sticky='w')
-        self.signalsLabel.grid(row=1,column=0,padx=(5,0),pady=5,sticky='e')
-        self.signals.grid(row=1,column=1,padx=5,pady=5,sticky='ew')
-        self.signalsButton.grid(row=1,column=2,padx=(0,5),pady=5,sticky='w')
-        self.resetButton.grid(row=2,column=0,columnspan=3,padx=5,pady=5,\
+        self.idlersLabel.grid(row=0,column=0,padx=(5,0),pady=(5,3),sticky='e')
+        self.idlers.grid(row=0,column=1,padx=5,pady=(5,3),sticky='ew')
+        self.idlersButton.grid(row=0,column=2,padx=(0,5),pady=(5,3),sticky='w')
+        self.signalsLabel.grid(row=1,column=0,padx=(5,0),pady=0,sticky='e')
+        self.signals.grid(row=1,column=1,padx=5,pady=0,sticky='ew')
+        self.signalsButton.grid(row=1,column=2,padx=(0,5),pady=0,sticky='w')
+        self.resetButton.grid(row=2,column=0,columnspan=3,padx=5,pady=(3,5),\
             sticky='ew')
 
     def enable_select(self):
@@ -343,15 +359,132 @@ class BeamSelect(LabeledFrame):
             command=self.enable_idler_select)
         self.signalsButton.configure(text='Select',\
             command=self.enable_signal_select)
+
+class ImportExportFrame(LabeledFrame):
+    def __init__(self, *args, raw_data: ReferentialNpArray, \
+                 filtered_data:ReferentialNpArray, raw_data_updates:CanvasList,\
+                 filtered_data_updates:CanvasList, load_state:tk.StringVar, \
+                 errors:ErrorBox, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.raw_data = raw_data
+        self.filtered_data = filtered_data
+        self.raw_data_updates = raw_data_updates
+        self.filtered_data_updates = filtered_data_updates
+        self.load_state = load_state
+        self.errors = errors
+        self.export_file = ctk.StringVar(self)
+        self.import_file = ctk.StringVar(self)
+
+        # tabs
+        f = self.frame
+        self.tabs = ctk.CTkTabview(master=f,height=0)
+        self.tabs.add("Import")
+        self.tabs.add("Export")
+        self.left_align_tabs()
+        self.tabs.set("Import")
+
+        # import stuff
+        self.import_select = LoadEntry(master=self.tabs.tab("Import"), \
+                                    command=self.imprt, defaultextension='.npy',\
+                                    filetypes=[("NumPy data file",'*.npy')],\
+                                    load_var=self.import_file, root=self.master.dir)
+        self.import_info = ctk.CTkTextbox(self.tabs.tab("Import"),height=56)
+        self.import_info.insert('end',"Note: importing will not update anything on this tab except for this dialog box.")
+
+        self.tabs.tab("Import").grid_columnconfigure(0,weight=1)
+        self.import_select.grid(row=0,column=0,padx=5,pady=(5,3),sticky='ew')
+        self.import_info.grid(row=1,column=0,padx=5,pady=(0,5),sticky='ew')
+
+        # export stuff
+        self.file_display = ctk.CTkEntry(self.tabs.tab("Export"))
+        self.export_button = ctk.CTkButton(self.tabs.tab("Export"), \
+                                           text='Export', width=0, \
+                                            command=self.export)
+        self.export_as_button = ctk.CTkButton(self.tabs.tab("Export"), \
+                                              text='Export as...', \
+                                                command=self.export_as)
+
+        self.tabs.tab("Export").grid_columnconfigure(0, weight=1)
+        self.file_display.grid(row=0,column=0,padx=(5,3),pady=(5,3),sticky='ew')
+        self.export_button.grid(row=0,column=1,padx=(0,5),pady=(5,3),sticky='ew')
+        self.export_as_button.grid(row=1,column=0,columnspan=2,padx=5,\
+                                   pady=(0,5),sticky='ew')
+
+        self.tabs.pack(padx=5,pady=5,expand=True,fill='both')
+                                
+    def left_align_tabs(self):
+        self.tabs._segmented_button.grid(row=1, rowspan=2, column=0, \
+            columnspan=1, padx=self.tabs._apply_widget_scaling(\
+            self.tabs._corner_radius), sticky="w")
+        for name in self.tabs._name_list:
+            self.tabs._tab_dict[name].grid(row=3, column=0, sticky="w",
+                padx=self.tabs._apply_widget_scaling(max(\
+                self.tabs._corner_radius, self.tabs._border_width)), \
+                pady=self.tabs._apply_widget_scaling(max(\
+                self.tabs._corner_radius, self.tabs._border_width)))
+            
+    def imprt(self):
+        try:
+            if self.import_file.get() == "":
+                self.errors.append("Please select a file for importing.")
+                return
+            
+            self.master.dir.set(os.path.dirname(self.import_file.get()))
+            loaded_arr = np.load(self.import_file.get())
+
+            self.raw_data.set(loaded_arr)
+            self.filtered_data.set(loaded_arr)
+            self.raw_data_updates.update_all()
+            self.filtered_data_updates.update_all()
+
+            self.import_info.insert('end',f'\nImport completed with {self.raw_data.get().shape[-1]} coincidences!')
+
+            self.update(self.import_file.get())
+        except Exception as e:
+            self.errors.append(f'Exception thrown during import:', True)
+        
+    def export(self):
+        if self.export_file.get() == "":
+            self.errors.append("A valid path to an export file must be selected.")
+            return
+        if self.filtered_data.get().shape[0] == 0:
+            self.errors.append("The file must be processed to export.")
+            return
+        try:
+            np.save(self.export_file.get(), self.filtered_data.get())
+            self.file_display.insert('end', " - Exported!")
+        except Exception as e:
+            self.errors.append("Error during export:", True)
+
+    def export_as(self):
+        initdir = self.master.dir
+        initfile = os.path.basename(os.path.realpath(self.export_file.get()))
+        fname = tkinter.filedialog.asksaveasfilename(initialdir=initdir, \
+            initialfile=initfile, defaultextension=".npy", \
+                filetypes=[("NumPy data file","*.npy")])
+        self.update(fname)
+        self.export()
+
+    def update(self, file_name:str):
+        if file_name != "" and file_name[-4:] != ".npy":
+            file_name = '.'.join(file_name.split('.')[:-1])
+            file_name = file_name + ".npy"
+        self.export_file.set(file_name)
+        self.master.dir.set(os.path.dirname(file_name))
+        self.file_display.delete(0,'end')
+        self.file_display.insert(0, os.path.basename(self.export_file.get()))
         
 class LoadingFrame(LabeledFrame):
     def __init__(self, *args, inp_file:tk.StringVar, beamCanvas:CanvasFrame,\
-        load_state:tk.StringVar, beamSelector:BeamSelect, errors:ErrorBox, **kwargs):
+                 io:ImportExportFrame, load_state:tk.StringVar, \
+                    beamSelector:BeamSelect, errors:ErrorBox, **kwargs):
         super().__init__(*args, **kwargs)
 
         # init data
         self.inp_file = inp_file
         self.errors = errors
+        self.io = io
         self.beamCanvas = beamCanvas
         self.load_state = load_state
         self.beamSelector = beamSelector
@@ -361,7 +494,7 @@ class LoadingFrame(LabeledFrame):
         self.load_dialog = LoadEntry(master=f,\
             command=self.load_preview, defaultextension='.tpx3',\
                 filetypes=[("TimePix3 raw file",'*.tpx3')],\
-                    load_var=self.inp_file)
+                    load_var=self.inp_file,root=self.master.dir)
         self.load_dialog.populate()
         self.reload_button = ctk.CTkButton(master=f, \
                                            text="Reload entire previous state",\
@@ -377,8 +510,10 @@ class LoadingFrame(LabeledFrame):
         self.reload_button.grid(row=1,padx=5,pady=(3,5),sticky='ew')
 
     def load_preview(self,reloaded=False):
+        self.io.update(self.inp_file.get())
         try:
             if self.inp_file.get() != '':
+                self.master.dir.set(os.path.dirname(self.inp_file.get()))
                 (tdc,pix) = t3.parse(self.inp_file.get())
                 self.beamCanvas.ax.clear()
                 t3view.plot_hits(pix,fig=self.beamCanvas.figure)
@@ -456,7 +591,7 @@ class ProcessFrame(LabeledFrame):
             self.monitor(thread)
         except Exception as e:
             self.load_state.set('Error while processing! See below.')
-            self.errors.append(str(e))
+            self.errors.append("Process error: ", True)
         
     def monitor(self,thread:ReturnThread):
         if thread.is_alive():

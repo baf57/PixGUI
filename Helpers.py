@@ -58,10 +58,11 @@ class CanvasList:
 class RecallFile:
     def __init__(self):
         self.file_path = os.path.join(os.path.curdir, 'recall.t3w')
-        self.fieldnames = ['version', 'file', 'calib_file', 'spaceWindow', \
+        self.fieldnames = ['version', 'dir', 'file', 'calib_file', 'spaceWindow', \
             'timeWindow', 'coincWindow', 'clusterRange', 'numScans', 'beamI', \
                 'beamS', 'fmin', 'fmax']
-        self.parameters = {'version': 1, \
+        self.parameters = {'version': 2, \
+                   'dir': '', \
                    'file': '', \
                    'calib_file': '',\
                     'spaceWindow': 20, \

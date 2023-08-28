@@ -294,8 +294,8 @@ class CorrelationTab(ctk.CTkFrame):
 
         # create widgets
         self.plot = CanvasFrame(master=self, label_text='X-Y Correlations', \
-                                mode='cursor', zoom=True, cwidth=800, \
-                                cheight=800)
+                                mode='cursor', zoom=True, cwidth=750, \
+                                cheight=750)
         self.plotcontrol = XYControl(master=self, label_text='X-Y Control')
 
         # modify widgets
