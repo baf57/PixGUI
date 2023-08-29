@@ -458,7 +458,7 @@ class ImportExportFrame(LabeledFrame):
             self.errors.append("Error during export:", True)
 
     def export_as(self):
-        initdir = self.master.dir
+        initdir = os.path.dirname(os.path.realpath(self.export_file.get()))
         initfile = os.path.basename(os.path.realpath(self.export_file.get()))
         fname = tkinter.filedialog.asksaveasfilename(initialdir=initdir, \
             initialfile=initfile, defaultextension=".npy", \
