@@ -183,7 +183,6 @@ class SettingsFrame(ctk.CTkFrame):
         new_params['numScans'] = self.numScans.get()
 
 class BeamSelect(LabeledFrame):
-    # TODO: previous beam locations memory
     def __init__(self, *args, canvas:CanvasFrame, beamI:list[t3.Beam], \
         beamS:list[t3.Beam], load_state:tk.StringVar, **kwargs):
         super().__init__(*args, **kwargs)

@@ -4,6 +4,7 @@ from Helpers import *
 from CustomTKWidgets import *
 import tpx3_toolkit as t3
 import tpx3_toolkit.viewer as t3view
+import tpx3_toolkit.filter as t3filter
 
 class FilterTab(ctk.CTkFrame):
     # TODO: Space filter
@@ -98,7 +99,8 @@ class TimeTab(ctk.CTkFrame):
                                    self.filtered_data_updates, \
                                     hist_update=self.update_histogram, \
                                     get_apply_filter=self.get_apply_filter, \
-                                     label_text="Time Statistics")
+                                     reset=self.reset,\
+                                        label_text="Time Statistics")
         
         # modify widgets
         self.filtered_data_updates.append([self.update_preview, \
@@ -130,7 +132,6 @@ class TimeTab(ctk.CTkFrame):
         self.histogram.init_home()
 
     def get_apply_filter(self):
-        dt = self.raw_data.get()[1,2,:] - self.raw_data.get()[0,2,:]
         (tmin, tmax) = self.histogram.get_clicks()
         self.histogram.clickx = None
         self.histogram.prevclickx = None
@@ -141,9 +142,9 @@ class TimeTab(ctk.CTkFrame):
             self.fmin.set(tmin)
             self.fmax.set(tmax)
 
-        f = np.logical_and(dt >= tmin, dt <= tmax)
+        data = t3filter.time_filter(self.raw_data.get(),tmin,tmax)
 
-        self.filtered_data.set(self.raw_data.get()[:,:,f])
+        self.filtered_data.set(data)
         self.filtered_data_updates.update_all()
 
     def recall(self, recall:RecallFile):
@@ -154,12 +155,17 @@ class TimeTab(ctk.CTkFrame):
         new_params['fmin'] = self.fmin.get()
         new_params['fmax'] = self.fmax.get()
 
+    def reset(self):
+        self.filtered_data.set(self.raw_data.get())
+        self.filtered_data_updates.update_all()
+
 class TimeInfo(LabeledFrame):
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, min_bin:tk.IntVar,\
                      max_bin:tk.IntVar, fmin:tk.IntVar, fmax:tk.IntVar, \
                         filtered_data_updates:CanvasList,\
                          hist_update:Callable, get_apply_filter:Callable, \
+                          reset:Callable, \
                               **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -187,7 +193,7 @@ class TimeInfo(LabeledFrame):
         self.maxBinController = LabeledEntry(f, var_ref=self.max_bin, \
                                             label_text='Maximum time bin: ',\
                                                 label_side='before')
-        self.update_button = ctk.CTkButton(f,text='Update Histogram',width=0,\
+        self.update_button = ctk.CTkButton(f,text='Update histogram',width=0,\
                                            command=self.update_info_from_button)
         self.show_f_counts = LabeledEntry(f, var_ref=self.filtered_counts, \
                                         label_text=\
@@ -197,7 +203,7 @@ class TimeInfo(LabeledFrame):
                                         label_text=\
                                         "Total counts: ",\
                                             label_side='before')
-        self.filter_button = ctk.CTkButton(f, text='Selected to Filter',width=0,\
+        self.filter_button = ctk.CTkButton(f, text='Selected to filter',width=0,\
                                           command=self.get_apply_filter)
         self.fmin_show = LabeledEntry(f, var_ref=self.fmin, \
                                       label_text="Filter minimum", \
@@ -205,10 +211,13 @@ class TimeInfo(LabeledFrame):
         self.fmax_show = LabeledEntry(f, var_ref=self.fmax, \
                                       label_text="Filter maximum", \
                                         label_side='before')
+        self.reset_button = ctk.CTkButton(f, text='Reset all filtering',width=0,\
+                                          command=reset)
     
         # layout widgets
         self.show_f_counts.grid(row=0,column=0,padx=(5,0),pady=(5,0),sticky='ew')
-        self.show_t_counts.grid(row=0,column=1,padx=5,pady=(5,0),sticky='ew')
+        self.show_t_counts.grid(row=0,column=1,padx=3,pady=(5,0),sticky='ew')
+        self.reset_button.grid(row=0,column=2,padx=(0,5),pady=(5,0),sticky='ew')
         self.minBinController.grid(row=1,column=0,padx=(5,0),pady=3,sticky='ew')
         self.maxBinController.grid(row=1,column=1,padx=3,pady=3,sticky='ew')
         self.update_button.grid(row=1,column=2,padx=(0,5),pady=3,sticky='ew')
@@ -245,7 +254,8 @@ class SpaceTab(ctk.CTkFrame):
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
         self.threshold = tk.DoubleVar(self, 0.2)
-        self.current_bin = 1
+        self.current_xbin = 1
+        self.current_ybin = 1
         self.unbined_data = self.filtered_data.get()
 
         # define widgets
@@ -266,7 +276,8 @@ class SpaceTab(ctk.CTkFrame):
                                         filtered_data_updates=self.filtered_data_updates, \
                                          threshold=self.threshold, \
                                           get_apply_filter=self.get_apply_filter, \
-                                            update_binning=self.update_binning)
+                                            update_binning=self.update_binning,\
+                                             reset=self.reset)
 
         # modify widgets
         self.filtered_data_updates.append([self.update_preview, \
@@ -303,50 +314,30 @@ class SpaceTab(ctk.CTkFrame):
         self.correlations.redraw()
         self.correlations.init_home()
 
-    def get_apply_filter(self):
-        # idea:
-        #   (1) create a 2D mask of the bins which need to be kept and those which don't 
-        #   (2) check each (xi,xs) pair in current filtered data
-        #       (a) If they are in a False bin then remove them from the filtered data
+    def get_apply_filter(self,alt=False):
+        if alt:
+            data = t3filter.space_filter_alt(self.filtered_data.get(), self.threshold.get())
+        else:
+            data = t3filter.space_filter(self.filtered_data.get(), self.threshold.get())
 
-        # THERE IS SOMETHING SUBTLEY WRONG WITH THIS BUT IT KINDA WORKS
-        
-        x_info = self.correlations.ax_1.get_images()[0].get_array()
-        y_info = self.correlations.ax_2.get_images()[0].get_array()
-        max_xs = np.max(x_info, axis=0, keepdims=True)
-        max_ys = np.max(y_info, axis=0, keepdims=True)
-        max_xi = np.max(x_info, axis=1, keepdims=True)
-        max_yi = np.max(y_info, axis=1, keepdims=True)
-
-        xi_offset = np.min(self.raw_data.get()[0,0,:])
-        xs_offset = np.min(self.raw_data.get()[1,0,:])
-        yi_offset = np.min(self.raw_data.get()[0,1,:])
-        ys_offset = np.min(self.raw_data.get()[1,1,:])
-        xs_mask = x_info > max_xs * self.threshold.get()
-        ys_mask = y_info > max_ys * self.threshold.get()
-        xi_mask = x_info > max_xi * self.threshold.get()
-        yi_mask = y_info > max_yi * self.threshold.get()
-
-        xs_filter = xs_mask[(self.filtered_data.get()[1,0,:]-xs_offset).astype('int'),
-                          (self.filtered_data.get()[0,0,:]-xi_offset).astype('int')]
-        ys_filter = ys_mask[(self.filtered_data.get()[1,1,:]-ys_offset).astype('int'),
-                          (self.filtered_data.get()[0,1,:]-yi_offset).astype('int')]
-        xi_filter = xi_mask[(self.filtered_data.get()[1,0,:]-xs_offset).astype('int'),
-                          (self.filtered_data.get()[0,0,:]-xi_offset).astype('int')]
-        yi_filter = yi_mask[(self.filtered_data.get()[1,1,:]-ys_offset).astype('int'),
-                          (self.filtered_data.get()[0,1,:]-yi_offset).astype('int')]
-        
-        f = np.logical_and(np.logical_and(xs_filter, xi_filter), \
-                           np.logical_and(ys_filter,yi_filter))
-        self.filtered_data.set(self.filtered_data.get()[:,:,f])
+        self.filtered_data.set(data)
         self.filtered_data_updates.update_all()
 
     def update_binning(self):
-        bin_data = self.filtered_data.get()
-        bin_data[:,0,:] = np.ceil(bin_data[:,0,:] / self.space_info.xbinsize.get())
-        bin_data[:,1,:] = np.ceil(bin_data[:,1,:] / self.space_info.ybinsize.get())
+        bin_data = t3filter.bin(self.filtered_data.get(), \
+                                self.space_info.xbinsize.get(), \
+                                self.space_info.ybinsize.get())
+        self.current_xbin = self.space_info.xbinsize.get()
+        self.current_ybin = self.space_info.ybinsize.get()
         self.filtered_data.set(bin_data)
         self.filtered_data_updates.update_all()
+
+    def reset(self):
+        # this is an ugly reference but it's the way that requires the least 
+        # amount of work to do the filter reset so this is what you get
+        self.master.master.master.timetab.get_apply_filter()
+        self.current_xbin = 1
+        self.current_ybin = 1
 
 
 class SpaceInfo(LabeledFrame):
@@ -356,7 +347,8 @@ class SpaceInfo(LabeledFrame):
                    threshold:tk.DoubleVar, \
                     get_apply_filter:Callable, \
                      update_binning:Callable, \
-                      **kwargs):
+                      reset:Callable, \
+                       **kwargs):
         super().__init__(*args, **kwargs)
 
         # init data
@@ -375,10 +367,6 @@ class SpaceInfo(LabeledFrame):
             os.path.dirname(os.path.realpath(__file__))+r'/assets/lock.png'))
         unlockimage = ctk.CTkImage(Image.open(\
             os.path.dirname(os.path.realpath(__file__))+r'/assets/unlock.png'))
-
-        # this is an ugly reference but it's the way that requires the least 
-        # amount of work to do the filter reset so this is what you get
-        reset = self.master.master.master.master.timetab.get_apply_filter
         
         filtered_data_updates.append([self.update_info])
 
@@ -388,6 +376,8 @@ class SpaceInfo(LabeledFrame):
                                         label_side='before')
         self.filter_button = ctk.CTkButton(f,text='Apply filter',width=0,\
                                            command=get_apply_filter)
+        self.filter_button_alt = ctk.CTkButton(f,text='Apply alt filter',width=0,\
+                                           command=lambda: get_apply_filter(alt=True))
         self.reset_button = ctk.CTkButton(f, text='Reset space filter',width=0,\
                                           command=reset)
         self.x_bin_box = SpinBox(f, var_ref=self.xbinsize)
@@ -398,8 +388,9 @@ class SpaceInfo(LabeledFrame):
         self.bin_button = ctk.CTkButton(f, text="Apply binning", width=0, \
                                         command=update_binning)
         
-        self.threshold_box.grid(row=0,column=0,columnspan=3,padx=(5,3),pady=(5,3),sticky='e')
-        self.filter_button.grid(row=0,column=3,padx=(0,5),pady=(5,3),sticky='ew')
+        self.threshold_box.grid(row=0,column=0,columnspan=2,padx=(5,3),pady=(5,3),sticky='e')
+        self.filter_button.grid(row=0,column=2,padx=0,pady=(5,3),sticky='ew')
+        self.filter_button_alt.grid(row=0,column=3,padx=(3,5),pady=(5,3),sticky='ew')
 
         self.x_bin_box.grid(row=1,column=0,padx=(5,3),pady=(3,5),sticky='ew')
         self.lock.grid(row=1,column=1,padx=0,pady=(3,5))

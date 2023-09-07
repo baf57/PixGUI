@@ -229,7 +229,10 @@ class TracesTab(ctk.CTkFrame):
         fwhm_list = np.array(fwhm_list)
         fwhm_list = fwhm_list[np.abs(fwhm_list - np.mean(fwhm_list)) < 2 * np.std(fwhm_list)]
 
-        return (np.min(fwhm_list), np.max(fwhm_list), np.mean(fwhm_list)) #type:ignore
+        try:
+            return (np.min(fwhm_list), np.max(fwhm_list), np.mean(fwhm_list)) #type:ignore
+        except:
+            return (0,0,0)
 
 class TraceControl(LabeledFrame):
     def __init__(self, *args, loc:tk.IntVar, direction:str, \
