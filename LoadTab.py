@@ -513,7 +513,7 @@ class LoadingFrame(LabeledFrame):
         try:
             if self.inp_file.get() != '':
                 self.master.dir.set(os.path.dirname(self.inp_file.get()))
-                (tdc,pix) = t3.parse(self.inp_file.get())
+                (tdc,pix) = t3.parse_raw_file(self.inp_file.get())
                 self.beamCanvas.ax.clear()
                 t3view.plot_hits(pix,fig=self.beamCanvas.figure)
                 self.beamCanvas.ax.set_xlabel("$X$ (pixels)")

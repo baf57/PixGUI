@@ -76,6 +76,7 @@ class TimeTab(ctk.CTkFrame):
         self.filtered_data_updates = filtered_data_updates
         self.min_bin = tk.IntVar(self,-200)
         self.max_bin = tk.IntVar(self,200)
+        self.num_bin = tk.IntVar(self,44)
         self.fmin = tk.IntVar(self,-200)
         self.fmax = tk.IntVar(self,200)
 
@@ -94,8 +95,8 @@ class TimeTab(ctk.CTkFrame):
         self.timeInfo = TimeInfo(master=self, raw_data = self.raw_data,\
                                  filtered_data = self.filtered_data, \
                                   min_bin=self.min_bin, max_bin=self.max_bin,\
-                                   fmin = self.fmin, fmax = self.fmax, \
-                                   filtered_data_updates= \
+                                   num_bin=self.num_bin, fmin = self.fmin, \
+                                    fmax = self.fmax, filtered_data_updates= \
                                    self.filtered_data_updates, \
                                     hist_update=self.update_histogram, \
                                     get_apply_filter=self.get_apply_filter, \
@@ -162,8 +163,8 @@ class TimeTab(ctk.CTkFrame):
 class TimeInfo(LabeledFrame):
     def __init__(self, *args, raw_data:ReferentialNpArray, \
                  filtered_data:ReferentialNpArray, min_bin:tk.IntVar,\
-                     max_bin:tk.IntVar, fmin:tk.IntVar, fmax:tk.IntVar, \
-                        filtered_data_updates:CanvasList,\
+                     max_bin:tk.IntVar, num_bin:tk.IntVar, fmin:tk.IntVar, \
+                         fmax:tk.IntVar, filtered_data_updates:CanvasList,\
                          hist_update:Callable, get_apply_filter:Callable, \
                           reset:Callable, \
                               **kwargs):
@@ -178,6 +179,7 @@ class TimeInfo(LabeledFrame):
         self.dt = np.zeros(0)
         self.min_bin = min_bin
         self.max_bin = max_bin
+        self.num_bin = num_bin
         self.fmin = fmin
         self.fmax = fmax
         self.hist_update = hist_update
@@ -188,10 +190,13 @@ class TimeInfo(LabeledFrame):
         # init widgets
         f = self.get_frame()
         self.minBinController = LabeledEntry(f, var_ref=self.min_bin, \
-                                            label_text='Minimum time bin: ',\
+                                            label_text='Bin range:',\
                                                 label_side='before')
         self.maxBinController = LabeledEntry(f, var_ref=self.max_bin, \
-                                            label_text='Maximum time bin: ',\
+                                            label_text=':',\
+                                                label_side='before')
+        self.numBinController = LabeledEntry(f, var_ref=self.num_bin, \
+                                            label_text=':',\
                                                 label_side='before')
         self.update_button = ctk.CTkButton(f,text='Update histogram',width=0,\
                                            command=self.update_info_from_button)
@@ -215,15 +220,16 @@ class TimeInfo(LabeledFrame):
                                           command=reset)
     
         # layout widgets
-        self.show_f_counts.grid(row=0,column=0,padx=(5,0),pady=(5,0),sticky='ew')
-        self.show_t_counts.grid(row=0,column=1,padx=3,pady=(5,0),sticky='ew')
-        self.reset_button.grid(row=0,column=2,padx=(0,5),pady=(5,0),sticky='ew')
-        self.minBinController.grid(row=1,column=0,padx=(5,0),pady=3,sticky='ew')
-        self.maxBinController.grid(row=1,column=1,padx=3,pady=3,sticky='ew')
-        self.update_button.grid(row=1,column=2,padx=(0,5),pady=3,sticky='ew')
-        self.fmin_show.grid(row=2,column=0,padx=(5,0),pady=(0,5),sticky='ew')
-        self.fmax_show.grid(row=2,column=1,padx=3,pady=(0,5),sticky='ew')
-        self.filter_button.grid(row=2,column=2,padx=(0,5),pady=(0,5),sticky='ew')
+        self.show_f_counts.grid(row=0,column=0,columnspan=4,padx=(5,0),pady=(5,0),sticky='ew')
+        self.show_t_counts.grid(row=0,column=4,columnspan=4,padx=3,pady=(5,0),sticky='ew')
+        self.reset_button.grid(row=0,column=8,columnspan=4,padx=(0,5),pady=(5,0),sticky='ew')
+        self.minBinController.grid(row=1,column=0,columnspan=3,padx=(5,0),pady=3,sticky='ew')
+        self.maxBinController.grid(row=1,column=3,columnspan=3,padx=3,pady=3,sticky='ew')
+        self.numBinController.grid(row=1,column=6,columnspan=3,padx=0,pady=3,sticky='ew')
+        self.update_button.grid(row=1,column=9,columnspan=3,padx=(3,5),pady=3,sticky='ew')
+        self.fmin_show.grid(row=2,column=0,columnspan=4,padx=(5,0),pady=(0,5),sticky='ew')
+        self.fmax_show.grid(row=2,column=4,columnspan=4,padx=3,pady=(0,5),sticky='ew')
+        self.filter_button.grid(row=2,column=8,columnspan=4,padx=(0,5),pady=(0,5),sticky='ew')
 
     def update_info_from_button(self):
         self.dt_raw = self.raw_data.get()[1,2,:] - self.raw_data.get()[0,2,:]
