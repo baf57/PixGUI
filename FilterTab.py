@@ -380,9 +380,9 @@ class SpaceInfo(LabeledFrame):
         self.threshold_box = LabeledEntry(f, var_ref=threshold, \
                                       label_text="Filter threshold", \
                                         label_side='before')
-        self.filter_button = ctk.CTkButton(f,text='Apply filter',width=0,\
-                                           command=get_apply_filter)
-        self.filter_button_alt = ctk.CTkButton(f,text='Apply alt filter',width=0,\
+        #self.filter_button = ctk.CTkButton(f,text='Apply filter',width=0,\
+        #                                   command=get_apply_filter)
+        self.filter_button_alt = ctk.CTkButton(f,text='Apply filter',width=0,\
                                            command=lambda: get_apply_filter(alt=True))
         self.reset_button = ctk.CTkButton(f, text='Reset space filter',width=0,\
                                           command=reset)
@@ -395,15 +395,17 @@ class SpaceInfo(LabeledFrame):
                                         command=update_binning)
         
         self.threshold_box.grid(row=0,column=0,columnspan=2,padx=(5,3),pady=(5,3),sticky='e')
-        self.filter_button.grid(row=0,column=2,padx=0,pady=(5,3),sticky='ew')
-        self.filter_button_alt.grid(row=0,column=3,padx=(3,5),pady=(5,3),sticky='ew')
+        #self.filter_button.grid(row=0,column=2,padx=0,pady=(5,3),sticky='ew')
+        self.filter_button_alt.grid(row=0,column=2,padx=0,pady=(5,3),sticky='ew')
+        #self.filter_button_alt.grid(row=0,column=3,padx=(3,5),pady=(5,3),sticky='ew')
+        self.reset_button.grid(row=0,column=3,padx=(3,5),pady=(5,3),sticky='ew')
 
         self.x_bin_box.grid(row=1,column=0,padx=(5,3),pady=(3,5),sticky='ew')
         self.lock.grid(row=1,column=1,padx=0,pady=(3,5))
         self.y_bin_box.grid(row=1,column=2,padx=3,pady=(3,5),sticky='ew')
         self.bin_button.grid(row=1,column=3,padx=(0,5),pady=(3,5),sticky='ew')
 
-        self.reset_button.grid(row=0,rowspan=2,column=4,padx=5,pady=5,sticky='ew')
+        #self.reset_button.grid(row=0,rowspan=2,column=4,padx=5,pady=5,sticky='ew')
 
         self.same_bins()
 
