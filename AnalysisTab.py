@@ -1,5 +1,4 @@
 import customtkinter as ctk
-import tpx3_toolkit as t3
 import tpx3_toolkit.viewer as t3view
 
 from Helpers import *

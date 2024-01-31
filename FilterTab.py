@@ -2,7 +2,6 @@ import customtkinter as ctk
 
 from Helpers import *
 from CustomTKWidgets import *
-import tpx3_toolkit as t3
 import tpx3_toolkit.viewer as t3view
 import tpx3_toolkit.filter as t3filter
 

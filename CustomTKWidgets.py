@@ -9,8 +9,6 @@ import numpy as np
 from datetime import datetime
 from PIL import Image
 from tkinter import ttk
-from tkinter import font
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from typing import Callable
 from typing_extensions import Literal
@@ -640,24 +638,38 @@ class LoadEntry(ctk.CTkFrame):
         self.entry.insert(index,string)
 
     def clear_and_insert(self,index:int=0, string:str=''):
-        self.entry.delete(0, 'end')
+        self.entry.delete(index, 'end')
         self.insert(index,string)
 
     def populate(self):
         # needed since self.load_var is not the textvariable of self.entry
-        self.clear_and_insert(0,os.path.basename(self.load_var.get()))
+        try:
+            index = 0
+            # the below list comprehension is how we need to parse the 
+            for fname in [x.split("'")[1] for x in self.load_var.get().split(',')]:
+                self.clear_and_insert(index,os.path.basename(fname)+', ')
+                index += len(os.path.basename(fname)+', ')
+            self.entry.delete(index-2, 'end')
+        except:
+            self.clear_and_insert()
 
     def open_dialog(self):
         if self.root is None:
             initdir = os.path.dirname(os.path.realpath(__file__))
         else:
             initdir = self.root.get()
-        initfile = os.path.basename(os.path.realpath(self.get()))
-        fname = tkinter.filedialog.askopenfilename(initialdir=initdir, \
+            
+        # need to check for empty, as realpath('') returns directory
+        if self.get() != '':
+            initfile = os.path.basename(os.path.realpath(self.get()))
+        else:
+            initfile = ''
+            
+        fnames = tkinter.filedialog.askopenfilenames(initialdir=initdir, \
             initialfile=initfile, defaultextension=self.defaultextension, \
                 filetypes=self.filetypes)
-        if fname != ():
-            self.load_var.set(fname)
+        if fnames != () and fnames != '':
+            self.load_var.set(fnames)
             self.populate()
             self.command()
 

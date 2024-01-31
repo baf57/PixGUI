@@ -10,7 +10,7 @@ from AnalysisTab import *
 
 class App(ctk.CTk):
     # TODO: object reference passing cleanup
-    # TODO: fix the redraw bug - this is annoying but not an functional issue
+    # TODO: fix the redraw bug - this is annoying but not a functional issue
     '''
     Main app window for holding all the other components.
     '''

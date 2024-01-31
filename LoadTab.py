@@ -1,13 +1,10 @@
-import time
 import tkinter as tk
 import customtkinter as ctk
-from datetime import datetime
-from threading import Thread
 
 from Helpers import *
 from CustomTKWidgets import *
 import tpx3_toolkit as t3
-import tpx3_toolkit.viewer as t3view # type: ignore
+import tpx3_toolkit.viewer as t3view
 
 class LoadTab(ctk.CTkFrame):
     '''
@@ -373,7 +370,7 @@ class ImportExportFrame(LabeledFrame):
         self.load_state = load_state
         self.errors = errors
         self.export_file = ctk.StringVar(self)
-        self.import_file = ctk.StringVar(self)
+        self.import_files = ctk.StringVar(self)
 
         # tabs
         f = self.frame
@@ -387,7 +384,7 @@ class ImportExportFrame(LabeledFrame):
         self.import_select = LoadEntry(master=self.tabs.tab("Import"), \
                                     command=self.imprt, defaultextension='.npy',\
                                     filetypes=[("NumPy data file",'*.npy')],\
-                                    load_var=self.import_file, root=self.master.dir)
+                                    load_var=self.import_files, root=self.master.dir)
         self.import_info = ctk.CTkTextbox(self.tabs.tab("Import"),height=56)
         self.import_info.insert('end',"Note: importing will not update anything on this tab except for this dialog box.")
 
@@ -425,12 +422,27 @@ class ImportExportFrame(LabeledFrame):
             
     def imprt(self):
         try:
-            if self.import_file.get() == "":
+            if self.import_files.get() == "":
                 self.errors.append("Please select a file for importing.")
                 return
             
-            self.master.dir.set(os.path.dirname(self.import_file.get()))
-            loaded_arr = np.load(self.import_file.get())
+            # import_files is a string rep of a tuple... inconvenient, but it works
+            try:
+                arrs = [x.split("'")[1] for x in self.import_files.get().split(',')]
+            except:
+                try:
+                    arrs = [self.import_files.get().split("'")[1]]
+                    print(arrs)
+                except: 
+                    self.errors.append("Please select a file for importing.")
+                    print(self.import_files.get().split(','))
+                    return
+            
+            self.master.dir.set(os.path.dirname(arrs[0]))
+            
+            loaded_arr = np.load(arrs[0])
+            for arr in arrs[1:]:
+                loaded_arr = np.concatenate((loaded_arr, np.load(arr)), axis=2)
 
             self.raw_data.set(loaded_arr)
             self.filtered_data.set(loaded_arr)
@@ -439,7 +451,7 @@ class ImportExportFrame(LabeledFrame):
 
             self.import_info.insert('end',f'\nImport completed with {self.raw_data.get().shape[-1]} coincidences!')
 
-            self.update(self.import_file.get())
+            self.update(self.import_files.get())
         except Exception as e:
             self.errors.append(f'Exception thrown during import:', True)
         

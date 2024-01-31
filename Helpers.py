@@ -2,10 +2,8 @@ import os
 import csv
 import numpy as np
 from threading import Thread
-from typing import TypedDict
 
 import tpx3_toolkit as t3
-import tpx3_toolkit.viewer as t3view
 from CustomTKWidgets import *
 
 class ReferentialNpArray:
