@@ -381,7 +381,7 @@ class ImportExportFrame(LabeledFrame):
         self.tabs.set("Import")
 
         # import stuff
-        self.import_select = LoadEntry(master=self.tabs.tab("Import"), \
+        self.import_select = MultiLoadEntry(master=self.tabs.tab("Import"), \
                                     command=self.imprt, defaultextension='.npy',\
                                     filetypes=[("NumPy data file",'*.npy')],\
                                     load_var=self.import_files, root=self.master.dir)
@@ -538,6 +538,7 @@ class LoadingFrame(LabeledFrame):
             else:
                 self.errors.append(f'Please select an input file when loading')
         except Exception as e:
+            print(f'{self.inp_file.get()=}')
             self.errors.append(f'Exception thrown during load:', True)
 
 class ProcessFrame(LabeledFrame):

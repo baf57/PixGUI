@@ -546,9 +546,6 @@ class LabeledEntry(ctk.CTkFrame):
         A reference to the variable which will be modified and displayed
     label_text:str
         The label text
-
-    # Notes
-    This and the below function should be refactored to be sibling classes
     '''
     def __init__(self, *args, var_ref:tk.Variable, label_text:str='', \
         label_side:str='after', **kwargs):
@@ -599,9 +596,6 @@ class LoadEntry(ctk.CTkFrame):
         extension
     command:Callable = lambda x: None
         Optional. A command which is called after the file is loaded
-
-    # Notes
-    This and the above function should be refactored to be sibling classes
     '''
     def __init__(self, *args, load_var:tk.StringVar, \
         defaultextension:str, filetypes:list[tuple[str,str]],\
@@ -641,6 +635,46 @@ class LoadEntry(ctk.CTkFrame):
         self.entry.delete(index, 'end')
         self.insert(index,string)
 
+    def populate(self):
+        self.clear_and_insert(0,os.path.basename(self.get()))
+
+    def open_dialog(self):
+        if self.root is None:
+            initdir = os.path.dirname(os.path.realpath(__file__))
+        else:
+            initdir = self.root.get()
+            
+        # need to check for empty, as realpath('') returns directory
+        if self.get() != '':
+            initfile = os.path.basename(os.path.realpath(self.get()))
+        else:
+            initfile = ''
+            
+        fnames = tkinter.filedialog.askopenfilename(initialdir=initdir, \
+            initialfile=initfile, defaultextension=self.defaultextension, \
+                filetypes=self.filetypes)
+        if fnames != () and fnames != '':
+            self.load_var.set(fnames)
+            self.populate()
+            self.command()
+
+class MultiLoadEntry(LoadEntry):
+    '''
+    An entry box which is populated by a file select prompt to select mutliple 
+    files. The return is a string representation of a tuple.
+
+    # Parameters
+    load_var:tk.StringVar
+        The variable which the filename will be loaded into. Works like C pass
+        by reference.
+    defaultextension:str
+        The default file extension showed by the load dialog box
+    filetypes:list[tuple[str,str]]
+        A list of paired string tuples each giving a description and file 
+        extension
+    command:Callable = lambda x: None
+        Optional. A command which is called after the file is loaded
+    '''
     def populate(self):
         # needed since self.load_var is not the textvariable of self.entry
         try:
