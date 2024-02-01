@@ -1,5 +1,6 @@
 import tkinter as tk
 import customtkinter as ctk
+import os
 
 from Helpers import *
 from CustomTKWidgets import *
@@ -432,10 +433,8 @@ class ImportExportFrame(LabeledFrame):
             except:
                 try:
                     arrs = [self.import_files.get().split("'")[1]]
-                    print(arrs)
                 except: 
                     self.errors.append("Please select a file for importing.")
-                    print(self.import_files.get().split(','))
                     return
             
             self.master.dir.set(os.path.dirname(arrs[0]))
@@ -451,7 +450,7 @@ class ImportExportFrame(LabeledFrame):
 
             self.import_info.insert('end',f'\nImport completed with {self.raw_data.get().shape[-1]} coincidences!')
 
-            self.update(self.import_files.get())
+            self.update(arrs[0])
         except Exception as e:
             self.errors.append(f'Exception thrown during import:', True)
         
@@ -521,7 +520,10 @@ class LoadingFrame(LabeledFrame):
         self.reload_button.grid(row=1,padx=5,pady=(3,5),sticky='ew')
 
     def load_preview(self,reloaded=False):
-        self.io.update(self.inp_file.get())
+        if self.check_size():
+            return
+        
+        self.io.update(self.inp_file.get())        
         try:
             if self.inp_file.get() != '':
                 self.master.dir.set(os.path.dirname(self.inp_file.get()))
@@ -540,6 +542,43 @@ class LoadingFrame(LabeledFrame):
         except Exception as e:
             print(f'{self.inp_file.get()=}')
             self.errors.append(f'Exception thrown during load:', True)
+            
+    def check_size(self):
+        file_size_MB = os.stat(self.inp_file.get()).st_size / (1024**2)
+        if file_size_MB > 500:
+            warning_text = f"The file '{os.path.basename(self.inp_file.get())}' is {file_size_MB:.0f}MB " +\
+                "in size! This is likely too big to parse all at once. " +\
+                "Please enter the size in MB of the files it wil be chopped "+\
+                "into. For context, 500MB is a good size for 8GB of VRAM.\n" +\
+                "NOTE: This process can take a *long* time."
+
+            parse_dialog = Popup(title="WARNING!", text=warning_text, 
+                                 default_value="500")
+            parse_file = parse_dialog.get_input()
+            
+            if parse_file:
+                try:
+                    thread = ReturnThread(target=t3.chop_large_file,
+                                          args=(self.inp_file.get(),
+                                                float(parse_file)))
+                    thread.start() # hangs on thread start. not sure why
+                    self.monitor(thread, 0)
+                except Exception as e:
+                    self.errors.append("Chopping error: ", True)
+            return bool(parse_file)
+        return False
+                
+    def monitor(self, thread:ReturnThread, dot):
+        if thread.is_alive():
+            self.load_dialog.clear_and_insert(0, 
+                    f"Chopping {os.path.basename(self.inp_file.get())}" +\
+                        ("." * int((dot/10)%4)))
+            dot += 1
+            self.after(50,lambda: self.monitor(thread, dot))
+        else:
+            self.inp_file.set(f"{self.inp_file.get()[:-5]}/part_000.tpx3")
+            self.load_dialog.populate()
+            self.load_preview()
 
 class ProcessFrame(LabeledFrame):
     def __init__(self, *args, inp_file:tk.StringVar, beamI:list[t3.Beam], \
