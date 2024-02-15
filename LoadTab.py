@@ -440,7 +440,11 @@ class ImportExportFrame(LabeledFrame):
             self.master.dir.set(os.path.dirname(arrs[0]))
             
             loaded_arr = np.load(arrs[0])
-            for arr in arrs[1:]:
+            for i,arr in enumerate(arrs[1:]):
+                percent = (i+1)/len(arrs)*100
+                self.import_info.delete('1.0', 'end')
+                self.import_info.insert('1.0', f'Import progress: {percent:4.1f}%')
+                self.master.update_idletasks()
                 loaded_arr = np.concatenate((loaded_arr, np.load(arr)), axis=2)
 
             self.raw_data.set(loaded_arr)
