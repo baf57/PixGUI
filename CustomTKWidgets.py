@@ -366,6 +366,12 @@ class SubplotCanvas(CanvasFrame):
         self.configure(cursor="")
         self.ax = None
 
+    def rename_plots(self, name_top, name_bottom):
+        self.ax_1.set_title(name_top)
+        self.ax_2.set_title(name_bottom)
+
+        self.redraw()
+
     def init_home(self):
         if self.xlimh[1] == np.inf:
             self.xlimh = self.ax_1.get_xlim()
@@ -661,7 +667,7 @@ class LoadEntry(ctk.CTkFrame):
 class MultiLoadEntry(LoadEntry):
     '''
     An entry box which is populated by a file select prompt to select mutliple 
-    files. The return is a string representation of a tuple.
+    files. The return is a list of file name strings.
 
     # Parameters
     load_var:tk.StringVar
@@ -679,8 +685,7 @@ class MultiLoadEntry(LoadEntry):
         # needed since self.load_var is not the textvariable of self.entry
         try:
             index = 0
-            # the below list comprehension is how we need to parse the 
-            for fname in [x.split("'")[1] for x in self.load_var.get().split(',')]:
+            for fname in self.get():
                 self.clear_and_insert(index,os.path.basename(fname)+', ')
                 index += len(os.path.basename(fname)+', ')
             self.entry.delete(index-2, 'end')
@@ -693,19 +698,18 @@ class MultiLoadEntry(LoadEntry):
         else:
             initdir = self.root.get()
             
-        # need to check for empty, as realpath('') returns directory
-        if self.get() != '':
-            initfile = os.path.basename(os.path.realpath(self.get()))
-        else:
-            initfile = ''
-            
-        fnames = tkinter.filedialog.askopenfilenames(initialdir=initdir, \
-            initialfile=initfile, defaultextension=self.defaultextension, \
-                filetypes=self.filetypes)
+        fnames = tkinter.filedialog.askopenfilenames(initialdir=initdir, 
+                                                     defaultextension=\
+                                                        self.defaultextension,
+                                                     filetypes=self.filetypes)
         if fnames != () and fnames != '':
             self.load_var.set(fnames)
             self.populate()
             self.command()
+
+    def get(self):
+        # the below list comprehension is how we need to parse the output
+        return [x.replace("'",'').strip() for x in self.load_var.get()[1:-2].split(',')]
 
 class ErrorBox(LabeledFrame):
     def __init__(self, *args, **kwargs):
@@ -740,13 +744,16 @@ class ErrorBox(LabeledFrame):
             self.errors.insert('end',r'\n')
 
 class DropDownFrame(ctk.CTkFrame):
-    def __init__(self, *args, label_text:str, frame:ctk.CTkFrame, \
-        init_state:Literal['hidden','shown']='hidden', **kwargs):
+    def __init__(self, *args, label_text:str, 
+                 frame:ctk.CTkFrame,
+                 init_state:Literal['hidden','shown']='hidden', 
+                 command:Callable=lambda: None, **kwargs):
         super().__init__(*args, bg_color='transparent', fg_color='transparent',\
                           **kwargs)
         self.label_text = label_text
         self.collapsable_frame = frame
         self.state = init_state
+        self.command = command # runs on open
         self.master_frame = kwargs.get('master')
 
         self.label = ctk.CTkButton(master=self,text=f'▶ {self.label_text}',\
@@ -754,7 +761,7 @@ class DropDownFrame(ctk.CTkFrame):
                                     fg_color='transparent',\
                                         command=self.collapse)
 
-        self.grid_rowconfigure(1,weight=1)
+        self.grid_rowconfigure(0,weight=1)
         self.label.grid(row=0,column=0,padx=5,pady=3,sticky='w')
 
     def collapse(self):
@@ -764,10 +771,11 @@ class DropDownFrame(ctk.CTkFrame):
             self.collapsable_frame.grid_forget()
         else:
             self.state = 'shown'
+            self.command()
             self.label.configure(text=f'▼ {self.label_text}')
             self.collapsable_frame.lift()
             self.collapsable_frame.grid(row=1,column=0,padx=5,pady=(0,3),\
-                                        sticky='ew')
+                                        sticky='ew', in_=self)
 
 class ToggleButton(ctk.CTkButton):
     def __init__(self, *args, on_command:callable, off_command:callable, \
@@ -804,9 +812,6 @@ class SpinBox(ctk.CTkFrame):
         A reference to the variable which will be modified and displayed
     label_text:str
         The label text
-
-    # Notes
-    This and the below function should be refactored to be sibling classes
     '''
     def __init__(self, *args, var_ref:tk.Variable, min_val=1, max_val=9, 
                  **kwargs):

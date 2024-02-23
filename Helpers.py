@@ -56,22 +56,26 @@ class CanvasList:
 class RecallFile:
     def __init__(self):
         self.file_path = os.path.join(os.path.curdir, 'recall.t3w')
-        self.fieldnames = ['version', 'dir', 'file', 'calib_file', 'spaceWindow', \
-            'timeWindow', 'coincWindow', 'clusterRange', 'numScans', 'beamI', \
-                'beamS', 'fmin', 'fmax']
-        self.parameters = {'version': 2, \
-                   'dir': '', \
-                   'file': '', \
-                   'calib_file': '',\
-                    'spaceWindow': 20, \
-                    'timeWindow': 250, \
-                    'coincWindow': 1000, \
-                    'clusterRange': 30, \
-                    'numScans': 20, \
-                    'beamI': t3.Beam(0,0,0,0).toString(), \
-                    'beamS': t3.Beam(0,0,0,0).toString(), \
-                    'fmin': -200, \
-                    'fmax': 200}
+        self.parameters = {'version': 3,
+                           'dir': '',
+                           'file':'',
+                           'calib_file':'',
+                           'spaceWindow':20,
+                           'timeWindow':250,
+                           'coincWindow':1000,
+                           'clusterRange':30,
+                           'numScans':20,
+                           'beamI':t3.Beam(0,0,0,0).toString(),
+                           'beamS':t3.Beam(0,0,0,0).toString(),
+                           'fmin':-200,
+                           'fmax':200,
+                           'ref_file': '',
+                           'ref_scale':1.085,
+                           'ref_angle':-3.5,
+                           'ref_thresh':0.4,
+                           'ref_lower':25,
+                           'ref_upper':150,
+                           'ref_binning':3}
 
         # check if the recall file exists. If it doesn't then make it
         if not(os.path.exists(self.file_path)):
@@ -88,7 +92,7 @@ class RecallFile:
         # BUG: only first pair of ilder and signal beam locations are recalled
         # this can be fixed, but it is more work than I need right now
         with open(self.file_path, 'w') as f:
-            w = csv.DictWriter(f, self.fieldnames)
+            w = csv.DictWriter(f, self.parameters.keys())
             w.writeheader()
             w.writerow(self.parameters)
 
@@ -104,7 +108,7 @@ class RecallFile:
                 assert values[0] == str(self.parameters['version'])
                 
             with open(self.file_path, 'r') as f:
-                r = csv.DictReader(f, self.fieldnames)
+                r = csv.DictReader(f, self.parameters.keys())
                 for line in r: # sets twice, but needs to skip header
                     self.parameters = line
         except:
@@ -118,6 +122,6 @@ class RecallFile:
             file_name = self.file_path
 
         with open(file_name, 'w') as f:
-            w = csv.DictWriter(f, self.fieldnames)
+            w = csv.DictWriter(f, fieldnames=new_parameters.keys())
             w.writeheader()
             w.writerow(new_parameters)

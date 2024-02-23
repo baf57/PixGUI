@@ -1,6 +1,7 @@
 import tkinter as tk
 import customtkinter as ctk
 import os
+import time as t
 
 from Helpers import *
 from CustomTKWidgets import *
@@ -23,7 +24,8 @@ class LoadTab(ctk.CTkFrame):
         self.raw_data_updates = raw_data_updates
         self.filtered_data_updates = filtered_data_updates
         self.errors = errors
-        self.dir = tk.StringVar(self,os.path.dirname(os.path.realpath(__file__)))
+        self.dir = tk.StringVar(self,
+                                os.path.dirname(os.path.realpath(__file__)))
 
         # global load data
         self.inp_file = tk.StringVar(self)
@@ -84,6 +86,18 @@ class LoadTab(ctk.CTkFrame):
         self.errors.lift() # needed to not draw behind frame since it was
                            # created before the frame was
 
+    def save(self, new_params:dict):
+        new_params['file'] = "100000000000000"
+        if len(self.inp_file.get()) > 0:
+            new_params['file'] = self.inp_file.get()
+        if self.raw_data.get().size > 0 or self.filtered_data.get().size > 0:
+            new_params['dir'] = self.dir.get()
+        if len(self.beamI) > 0:
+            new_params['beamI'] = self.beamI[0].toString()
+        if len(self.beamS) > 0:
+            new_params['beamS'] = self.beamS[0].toString()
+        self.process.settings.save(new_params)
+
     def recall(self, recall:RecallFile):
         self.inp_file.set(recall.parameters['file'])
         self.loader.load_dialog.populate()
@@ -92,18 +106,12 @@ class LoadTab(ctk.CTkFrame):
         self.beamI.append(t3.Beam.fromString(recall.parameters['beamI']))
         self.beamS.append(t3.Beam.fromString(recall.parameters['beamS']))
         self.beamSelector.redraw_beams()
-
-    def save(self, new_params:dict):
-        if len(self.inp_file.get()) > 0:
-            new_params['file'] = self.inp_file.get()
-            new_params['dir'] = self.dir.get()
-        if len(self.beamI) > 0:
-            new_params['beamI'] = self.beamI[0].toString()
-        if len(self.beamS) > 0:
-            new_params['beamS'] = self.beamS[0].toString()
     
-    def recallDir(self, recall:RecallFile):
+    def recall_dir(self, recall:RecallFile):
         self.dir.set(recall.parameters['dir'])
+
+    def recall_settings(self, recall:RecallFile):
+        self.process.settings.recall(recall)
 
         
 class SettingsFrame(ctk.CTkFrame):
@@ -423,36 +431,41 @@ class ImportExportFrame(LabeledFrame):
             
     def imprt(self):
         try:
-            if self.import_files.get() == "":
+            if self.import_select.get() == "":
                 self.errors.append("Please select a file for importing.")
                 return
             
-            # import_files is a string rep of a tuple... inconvenient, but it works
-            try:
-                arrs = [x.split("'")[1] for x in self.import_files.get().split(',')]
-            except:
-                try:
-                    arrs = [self.import_files.get().split("'")[1]]
-                except: 
-                    self.errors.append("Please select a file for importing.")
-                    return
-            
+            arrs = self.import_select.get()
             self.master.dir.set(os.path.dirname(arrs[0]))
             
+            self.import_info.delete('1.0', 'end')
+            self.import_info.insert('1.0', f'Importing file(s):\n')
+            self.import_info.insert('end', f'\tImport progress: {0.0:4.1f}%')
+            self.master.update_idletasks()
             loaded_arr = np.load(arrs[0])
             for i,arr in enumerate(arrs[1:]):
-                percent = (i+1)/len(arrs)*100
-                self.import_info.delete('1.0', 'end')
-                self.import_info.insert('1.0', f'Import progress: {percent:4.1f}%')
-                self.master.update_idletasks()
+                if i==0:
+                    percent = 1/len(arrs)*100
+                    self.import_info.delete('2.1', 'end')
+                    self.import_info.insert('2.1', 
+                                            f'Import progress: {percent:4.1f}%')
+                    self.master.update_idletasks()
                 loaded_arr = np.concatenate((loaded_arr, np.load(arr)), axis=2)
+                percent = (i+2)/len(arrs)*100
+                self.import_info.delete('2.1', 'end')
+                self.import_info.insert('2.1', f'Import progress: {percent:4.1f}%')
+                self.master.update_idletasks()
+
+            self.import_info.insert('end', f'\n\tUpdating plots (may take some time)...')
+            self.master.update_idletasks()
 
             self.raw_data.set(loaded_arr)
             self.filtered_data.set(loaded_arr)
             self.raw_data_updates.update_all()
             self.filtered_data_updates.update_all()
 
-            self.import_info.insert('end',f'\nImport completed with {self.raw_data.get().shape[-1]} coincidences!')
+            self.import_info.delete('1.0', 'end')
+            self.import_info.insert('1.0',f'Import completed with {self.raw_data.get().shape[-1]} coincidences!')
 
             self.update(arrs[0])
         except Exception as e:
@@ -510,9 +523,9 @@ class LoadingFrame(LabeledFrame):
                 filetypes=[("TimePix3 raw file",'*.tpx3')],\
                     load_var=self.inp_file,root=self.master.dir)
         self.load_dialog.populate()
-        self.reload_button = ctk.CTkButton(master=f, \
-                                           text="Reload entire previous state",\
-                                           command=self.master.master.master.master.recallAll) #type:ignore
+        self.reload_button = ctk.CTkButton(master=f,
+                                           text="Reload entire previous state",
+                                           command=self.master.master.master.master.recall_all) #type:ignore
         # this is a reference to a function of top level app, but I mean... if I
         # assume it's a duck, I should also assume it can quack
         

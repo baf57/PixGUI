@@ -9,7 +9,6 @@ from FilterTab import *
 from AnalysisTab import *
 
 class App(ctk.CTk):
-    # TODO: object reference passing cleanup
     # TODO: fix the redraw bug - this is annoying but not a functional issue
     '''
     Main app window for holding all the other components.
@@ -44,31 +43,37 @@ class App(ctk.CTk):
         self.tabs.set("Load")
 
         # create widgets in tabs and then place them
-        self.loadtab = LoadTab(master=self.tabs.tab("Load"),\
-            raw_data=self.raw_data, filtered_data=self.filtered_data,\
-                raw_data_updates=self.raw_data_updates, \
-                    filtered_data_updates=self.filtered_data_updates, \
-                        errors=self.errors)
-        self.loadtab.pack(padx=0,pady=0,anchor='center',expand=True,\
-            fill='both')
-        self.filtertab = FilterTab(master=self.tabs.tab("Filter"),\
-            raw_data=self.raw_data, filtered_data=self.filtered_data,\
-                raw_data_updates=self.raw_data_updates, \
-                    filtered_data_updates=self.filtered_data_updates)
-        self.filtertab.pack(padx=0,pady=0,anchor='center',expand=True,\
-            fill='both')
-        self.analysistab = AnalysisTab(master=self.tabs.tab("Analysis"), \
-                filtered_data = self.filtered_data, \
-                    filtered_data_updates=self.filtered_data_updates)
-        self.analysistab.pack(padx=0,pady=0,anchor='center',expand=True,\
-                              fill='both')
+        self.loadtab = LoadTab(master=self.tabs.tab("Load"),
+                               raw_data=self.raw_data, 
+                               filtered_data=self.filtered_data,
+                               raw_data_updates=self.raw_data_updates,
+                               filtered_data_updates=self.filtered_data_updates,
+                               errors=self.errors)
+        self.filtertab = FilterTab(master=self.tabs.tab("Filter"),
+                                   raw_data=self.raw_data, 
+                                   filtered_data=self.filtered_data,
+                                   raw_data_updates=self.raw_data_updates,
+                                   filtered_data_updates=\
+                                                     self.filtered_data_updates,
+                                   errors=self.errors)
+        self.analysistab = AnalysisTab(master=self.tabs.tab("Analysis"),
+                                       filtered_data = self.filtered_data,
+                                       filtered_data_updates=\
+                                                     self.filtered_data_updates,
+                                       errors=self.errors)
 
         # layout tabs
-        self.tabs.pack(padx=10, pady=0, anchor='center', expand=True, \
-            fill='both')
+        self.loadtab.pack(padx=0,pady=0,anchor='center',
+                          expand=True,fill='both')
+        self.filtertab.pack(padx=0,pady=0,anchor='center',
+                            expand=True,fill='both')
+        self.analysistab.pack(padx=0,pady=0,anchor='center',
+                              expand=True,fill='both')
+        self.tabs.pack(padx=10, pady=0, anchor='center',
+                       expand=True,fill='both')
         
-        self.recallDir()
-        self.recallSettings()
+        self.recall_dir()
+        self.recall_settings()
 
     def set_mpl_params(self):
         if ctk.get_appearance_mode() == "Light":
@@ -94,26 +99,27 @@ class App(ctk.CTk):
                 self.tabs._corner_radius, self.tabs._border_width)))
             
     def save_state(self,file_name:str=''):
-        # settings saving should be handled by objects themselves, not root
+        # settings saving should be handled by tab root and passed to children
         new_params = self.recall.parameters.copy()
         
         self.loadtab.save(new_params)
-        self.loadtab.process.settings.save(new_params)
-        self.filtertab.timetab.save(new_params)
+        self.filtertab.save(new_params)
 
         self.recall.write_file(new_params, file_name)
 
-    def recallAll(self):
-        # settings recall should be handled by the objects themselves, not root
+    def recall_all(self):
+        # settings recall should be handled by tab root and passed to children
         self.loadtab.recall(self.recall)
-        self.loadtab.process.settings.recall(self.recall)
-        self.filtertab.timetab.recall(self.recall)
+        self.filtertab.recall(self.recall)
 
-    def recallSettings(self):
-        self.loadtab.process.settings.recall(self.recall)
+    def recall_settings(self):
+        # things which are generally not adjusted at runtime
+        self.loadtab.recall_settings(self.recall)
+        self.filtertab.recall_settings(self.recall)
 
-    def recallDir(self):
-        self.loadtab.recallDir(self.recall)
+    def recall_dir(self):
+        self.loadtab.recall_dir(self.recall)
+        self.filtertab.recall_dir(self.recall)
 
     def quit_cleanup(self):
         self.save_state()

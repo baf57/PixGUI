@@ -1,3 +1,4 @@
+import traceback
 import customtkinter as ctk
 import tpx3_toolkit.viewer as t3view
 
@@ -8,13 +9,15 @@ class AnalysisTab(ctk.CTkFrame):
     '''
     The tab where all of the analysis work occurs
     '''
-    def __init__(self, *args, filtered_data:ReferentialNpArray, \
-                 filtered_data_updates, **kwargs):
+    def __init__(self, *args, filtered_data:ReferentialNpArray,
+                 filtered_data_updates, 
+                 errors:ErrorBox, **kwargs):
         super().__init__(*args, **kwargs)
 
         # init
         self.filtered_data = filtered_data
         self.filtered_data_updates = filtered_data_updates
+        self.errors = errors
 
         # add sub-tabs
         self.tabs = ctk.CTkTabview(self)
@@ -24,12 +27,16 @@ class AnalysisTab(ctk.CTkFrame):
         self.tabs.set("Traces")
 
         # add widgets to tabs
-        self.tracestab = TracesTab(master=self.tabs.tab("Traces"),\
-                                filtered_data=self.filtered_data, \
-                                filtered_data_updates=self.filtered_data_updates)
-        self.correlationtab = CorrelationTab(master=self.tabs.tab("Correlation"),\
-                                filtered_data=self.filtered_data, \
-                                filtered_data_updates=self.filtered_data_updates)
+        self.tracestab = TracesTab(master=self.tabs.tab("Traces"),
+                                   filtered_data=self.filtered_data, 
+                                   filtered_data_updates=\
+                                                     self.filtered_data_updates,
+                                   errors=self.errors)
+        self.correlationtab = CorrelationTab(master=\
+                                             self.tabs.tab("Correlation"),
+                                             filtered_data=self.filtered_data,
+                                             filtered_data_updates=\
+                                                self.filtered_data_updates)
 
         # layout tabs
         self.tracestab.pack(padx=0,pady=0,anchor='center',expand=True,\
@@ -50,13 +57,15 @@ class AnalysisTab(ctk.CTkFrame):
                 self.tabs._corner_radius, self.tabs._border_width)))
             
 class TracesTab(ctk.CTkFrame):
-    def __init__(self, *args, filtered_data:ReferentialNpArray, \
-                 filtered_data_updates:CanvasList, **kwargs):
+    def __init__(self, *args, filtered_data:ReferentialNpArray,
+                 filtered_data_updates:CanvasList,
+                 errors:ErrorBox, **kwargs):
         super().__init__(*args, **kwargs)
 
         # init data
         self.filtered_data = filtered_data
         self.filtered_data_updates = filtered_data_updates
+        self.errors=errors
         self.x_loc = tk.IntVar(self,-1)
         self.x_orientation = tk.StringVar(self,'x')
         self.xtracemin = tk.IntVar(self,0)
@@ -137,70 +146,80 @@ class TracesTab(ctk.CTkFrame):
         self.correlations.init_home()
     
     def update_trace_1(self, data:ReferentialNpArray):
-        (loc1, loc2) = self.correlations.get_clicks()
-        self.correlations.clickx = None
-        if loc1 >= 0:
-            self.x_loc.set(loc1)
-        if self.x_loc.get() == -1:
-            # avoids the issue that range is based on selected size
-            idlmin = np.min(self.filtered_data.get()[0,0,:])
-            idlmax = np.max(self.filtered_data.get()[0,0,:])
-            idl = idlmax - idlmin
-            sigmin = np.min(self.filtered_data.get()[1,0,:])
-            sigmax = np.max(self.filtered_data.get()[1,0,:])
-            sig = sigmax - sigmin
-            self.x_loc.set(sig // 2)
-            self.xtracemin.set(0)
-            self.xtracemax.set(sig)
+        try:
+            (loc1, loc2) = self.correlations.get_clicks()
+            self.correlations.clickx = None
+            if loc1 >= 0:
+                self.x_loc.set(loc1)
+            if self.x_loc.get() == -1:
+                # avoids the issue that range is based on selected size
+                idlmin = np.min(self.filtered_data.get()[0,0,:])
+                idlmax = np.max(self.filtered_data.get()[0,0,:])
+                idl = idlmax - idlmin
+                sigmin = np.min(self.filtered_data.get()[1,0,:])
+                sigmax = np.max(self.filtered_data.get()[1,0,:])
+                sig = sigmax - sigmin
+                self.x_loc.set(sig // 2)
+                self.xtracemin.set(0)
+                self.xtracemax.set(sig)
 
-        self.traces.ax_1.clear()
-        (fig,out,allout) = t3view.plot_coincidence_trace(data.get()[:,0,:],\
-                                            self.x_loc.get(), \
-                                            self.x_orientation.get(), \
-                                            self.xtracemin.get(),\
-                                            self.xtracemax.get(), \
-                                            self.traces.ax_1)
-        self.traces.redraw()
-        self.correlations.show_1(self.x_loc.get())
-        self.correlations.redraw()
+            self.traces.ax_1.clear()
+            (fig,out,allout) = t3view.plot_coincidence_trace(data.get()[:,0,:],\
+                                                self.x_loc.get(), \
+                                                self.x_orientation.get(), \
+                                                self.xtracemin.get(),\
+                                                self.xtracemax.get(), \
+                                                self.traces.ax_1)
+            self.traces.redraw()
+            self.correlations.show_1(self.x_loc.get())
+            self.correlations.redraw()
 
-        (fwhmmin,fwhmmax,fwhm) = self.fwhm_avg(allout, self.x_orientation)
-        self.xfwhmmin.set(fwhmmin)
-        self.xfwhmmax.set(fwhmmax)
-        self.xfwhm.set(fwhm)
+            (fwhmmin,fwhmmax,fwhm) = self.fwhm_avg(allout, self.x_orientation)
+            self.xfwhmmin.set(fwhmmin)
+            self.xfwhmmax.set(fwhmmax)
+            self.xfwhm.set(fwhm)
+        except:
+            self.errors.append(\
+  'Error performing traces (likely harmless, see STDERR for details if needed)')
+            traceback.print_exc()
     
     def update_trace_2(self, data:ReferentialNpArray):
-        (loc1, loc2) = self.correlations.get_clicks()
-        self.correlations.clicky = None
-        if loc2 >= 0:
-            self.y_loc.set(loc2)
-        if self.y_loc.get() == -1:
-            # avoids the issue that range is based on selected size
-            idlmin = np.min(self.filtered_data.get()[0,1,:])
-            idlmax = np.max(self.filtered_data.get()[0,1,:])
-            idl = idlmax - idlmin
-            sigmin = np.min(self.filtered_data.get()[1,1,:])
-            sigmax = np.max(self.filtered_data.get()[1,1,:])
-            sig = sigmax - sigmin
-            self.y_loc.set(sig // 2)
-            self.ytracemin.set(0)
-            self.ytracemax.set(idl)
+        try:
+            (loc1, loc2) = self.correlations.get_clicks()
+            self.correlations.clicky = None
+            if loc2 >= 0:
+                self.y_loc.set(loc2)
+            if self.y_loc.get() == -1:
+                # avoids the issue that range is based on selected size
+                idlmin = np.min(self.filtered_data.get()[0,1,:])
+                idlmax = np.max(self.filtered_data.get()[0,1,:])
+                idl = idlmax - idlmin
+                sigmin = np.min(self.filtered_data.get()[1,1,:])
+                sigmax = np.max(self.filtered_data.get()[1,1,:])
+                sig = sigmax - sigmin
+                self.y_loc.set(sig // 2)
+                self.ytracemin.set(0)
+                self.ytracemax.set(idl)
 
-        self.traces.ax_2.clear()
-        (fig,out,allout) = t3view.plot_coincidence_trace(data.get()[:,1,:],\
-                                            self.y_loc.get(), \
-                                            self.y_orientation.get(), \
-                                            self.ytracemin.get(),\
-                                            self.ytracemax.get(), \
-                                            self.traces.ax_2)
-        self.traces.redraw()
-        self.correlations.show_2(self.y_loc.get())
-        self.correlations.redraw()
+            self.traces.ax_2.clear()
+            (fig,out,allout) = t3view.plot_coincidence_trace(data.get()[:,1,:],\
+                                                self.y_loc.get(), \
+                                                self.y_orientation.get(), \
+                                                self.ytracemin.get(),\
+                                                self.ytracemax.get(), \
+                                                self.traces.ax_2)
+            self.traces.redraw()
+            self.correlations.show_2(self.y_loc.get())
+            self.correlations.redraw()
 
-        (fwhmmin,fwhmmax,fwhm) = self.fwhm_avg(allout, self.y_orientation)
-        self.yfwhmmin.set(fwhmmin)
-        self.yfwhmmax.set(fwhmmax)
-        self.yfwhm.set(fwhm)
+            (fwhmmin,fwhmmax,fwhm) = self.fwhm_avg(allout, self.y_orientation)
+            self.yfwhmmin.set(fwhmmin)
+            self.yfwhmmax.set(fwhmmax)
+            self.yfwhm.set(fwhm)
+        except:
+            self.errors.append(\
+  'Error performing traces (likely harmless, see STDERR for details if needed)')
+            traceback.print_exc()
 
     def fwhm_avg(self,view:np.ndarray,orientation:tk.StringVar) \
                                                         -> tuple[int,int,float]:
