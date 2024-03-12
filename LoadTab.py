@@ -93,9 +93,9 @@ class LoadTab(ctk.CTkFrame):
         if self.raw_data.get().size > 0 or self.filtered_data.get().size > 0:
             new_params['dir'] = self.dir.get()
         if len(self.beamI) > 0:
-            new_params['beamI'] = self.beamI[0].toString()
+            new_params['beamI'] = str(self.beamI[0])
         if len(self.beamS) > 0:
-            new_params['beamS'] = self.beamS[0].toString()
+            new_params['beamS'] = str(self.beamS[0])
         self.process.settings.save(new_params)
 
     def recall(self, recall:RecallFile):
@@ -289,7 +289,7 @@ class BeamSelect(LabeledFrame):
             clickinfo = self.canvas.get_clicks()
             newbeam = t3.Beam(clickinfo[0], clickinfo[1], clickinfo[2],\
                 clickinfo[3])
-            newstring = newbeam.toString()
+            newstring = str(newbeam)
 
             if self.mode == 'idler':
                 drawing = t3view.draw_beam_box(self.canvas.ax,[newbeam],['g'])
@@ -324,13 +324,13 @@ class BeamSelect(LabeledFrame):
 
     def redraw_beams(self):
         if len(self.beamI) > 0 and len(self.beamS) > 0:
-            self.beamIString.set(f'{{{self.beamI[0].toString()}}}')
-            self.beamSString.set(f'{{{self.beamS[0].toString()}}}')
+            self.beamIString.set(f'{{{self.beamI[0]}}}')
+            self.beamSString.set(f'{{{self.beamS[0]}}}')
             for i in range(len(self.beamI)-1):
                 oldIString = self.beamIString.get()[1:-1]
                 oldSString = self.beamSString.get()[1:-1]
-                newIString = self.beamI[i+1].toString()
-                newSString = self.beamS[i+1].toString()
+                newIString = str(self.beamI[i+1])
+                newSString = str(self.beamS[i+1])
                 self.beamIString.set(f'{{{oldIString}, {newIString}}}')
                 self.beamSString.set(f'{{{oldSString}, {newSString}}}')
 
