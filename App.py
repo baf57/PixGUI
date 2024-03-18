@@ -17,7 +17,7 @@ class App(ctk.CTk):
         # set some parameters and do super init
         super().__init__()
         self.title("PixGUI")
-        self.geometry("1520x930")
+        self.geometry("1550x950")
 
         # define the global data for the whole app
         self.raw_data = ReferentialNpArray()

@@ -244,7 +244,13 @@ class TracesTab(ctk.CTkFrame):
                     fwhm_list.append((indc[-1]+1) - indc[0])
 
         # removing outliers
-        fwhm_list = np.array(fwhm_list)
+        try: # handle CuPy array if that's an issue
+            fwhm_list = np.array(fwhm_list)
+        except:
+            fwhm_list
+            for i in range(len(fwhm_list)):
+                fwhm_list[i] = fwhm_list[i].get()
+
         fwhm_list = fwhm_list[np.abs(fwhm_list - np.mean(fwhm_list)) < 2 * np.std(fwhm_list)]
 
         try:

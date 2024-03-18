@@ -87,7 +87,6 @@ class LoadTab(ctk.CTkFrame):
                            # created before the frame was
 
     def save(self, new_params:dict):
-        new_params['file'] = "100000000000000"
         if len(self.inp_file.get()) > 0:
             new_params['file'] = self.inp_file.get()
         if self.raw_data.get().size > 0 or self.filtered_data.get().size > 0:

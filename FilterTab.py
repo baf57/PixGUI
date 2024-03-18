@@ -218,8 +218,8 @@ class PreviewCanvas(SubplotCanvas):
 
         if self.ref_image.ref.get().size != 0:
             fidelities = self.ref_image.calc_fidelities(direct,ghost)
-            self.rename_plots(f"Idler - Fidelity: {fidelities[0]*100:.2f}%",
-                              f"Signal - Fidelity: {fidelities[1]*100:.2f}%")
+            self.rename_plots(f"Idler - Fidelity: {fidelities[1]*100:.2f}%",
+                              f"Signal - Fidelity: {fidelities[0]*100:.2f}%")
 
         self.redraw()
             
@@ -647,7 +647,7 @@ class SpaceTab(ctk.CTkFrame):
         self.update_binning()
 
         if alt:
-            data = t3filter.space_filter_alt(self.filtered_data.get(), 
+            (data,_) = t3filter.space_filter_alt(self.filtered_data.get(), 
                                              self.threshold.get())
         else:
             data = t3filter.space_filter(self.filtered_data.get(), 
